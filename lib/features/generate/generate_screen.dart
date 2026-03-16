@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/generation_service.dart';
 import '../../core/models/extraction_result.dart';
 import '../../core/models/generation_job.dart';
+import '../review/review_screen.dart';
 
 class GenerateScreen extends StatefulWidget {
   final List<Finding> findings;
@@ -38,12 +38,11 @@ class _GenerateScreenState extends State<GenerateScreen> {
         }
         if (job.status == GenerationJobStatus.completed) {
           if (!mounted) return;
-          // TODO: navigate to review screen (Step F) with image URL
-          // context.go('/review', extra: job);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Review screen coming in Step F.')),
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ReviewScreen(job: job),
+            ),
           );
-          context.go('/home');
           return;
         }
       }

@@ -39,6 +39,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
           return;
         }
         rawFile = File(picked.path);
+      } else if (source == CaptureSource.photos) {
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 100,
+          requestFullMetadata: false,
+        );
+        if (picked == null) {
+          setState(() => _processing = false);
+          return;
+        }
+        rawFile = File(picked.path);
       } else {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
@@ -97,15 +108,21 @@ class _CaptureScreenState extends State<CaptureScreen> {
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(title: const Text('New Report')),
+          appBar: AppBar(title: const Text('New Image')),
           body: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Spacer(),
-                const Icon(Icons.document_scanner_outlined,
-                    size: 72, color: AppTheme.primary),
+                Image.asset(
+                  'assets/images/SMALL-Resolara_V5.png',
+                  height: 200,
+                  width: 200,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.document_scanner_outlined, size: 72, color: AppTheme.primary),
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Capture or import a medical report',
@@ -143,6 +160,20 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       _processing ? null : () => _handleSource(CaptureSource.camera),
                   icon: const Icon(Icons.camera_alt),
                   label: const Text('Take Photo'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed:
+                      _processing ? null : () => _handleSource(CaptureSource.photos),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Choose from Photos'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.gold,
+                    side: const BorderSide(color: AppTheme.gold),
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

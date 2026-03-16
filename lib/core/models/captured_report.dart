@@ -1,6 +1,6 @@
 import 'dart:io';
 
-enum CaptureSource { camera, import }
+enum CaptureSource { camera, photos, import }
 
 class CapturedReport {
   final File file;

@@ -32,6 +32,9 @@ ios/Runner/GoogleService-Info.plist
 macos/Flutter/GeneratedPluginRegistrant.swift
 macos/Flutter/ephemeral/
 
+# Markdown docs (kept local only)
+*.md
+
 # Environment / Secrets
 .env
 .env.*

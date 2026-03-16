@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/ocr_service.dart';
 import '../../core/models/captured_report.dart';
+import '../../core/models/extraction_result.dart';
 import '../../core/models/ocr_job.dart';
+import '../extract/extract_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   final CapturedReport report;
@@ -44,14 +46,15 @@ class _ReaderScreenState extends State<ReaderScreen> {
           return;
         }
         if (job.status == OcrJobStatus.completed) {
-          // TODO: navigate to extraction screen (Step D) with job.result
-          // context.go('/extract', extra: job.result);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Extraction review coming in Step D.')),
-            );
-            context.go('/home');
-          }
+          if (!mounted) return;
+          final extraction =
+              ExtractionResult.fromJson(job.result ?? {});
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ExtractScreen(extraction: extraction),
+            ),
+          );
+          if (mounted) context.go('/home');
           return;
         }
       }

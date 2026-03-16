@@ -151,6 +151,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import from Files'),
                   style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.gold,
+                    side: const BorderSide(color: AppTheme.gold),
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),

@@ -21,6 +21,16 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex(context),
         backgroundColor: AppTheme.surface,
+        indicatorColor: AppTheme.emerald,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppTheme.gold : AppTheme.sage,
+            fontFamily: AppTheme.fontFamily,
+          );
+        }),
         onDestinationSelected: (index) {
           switch (index) {
             case 0:
@@ -33,7 +43,7 @@ class AppShell extends StatelessWidget {
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.camera_alt_outlined), label: 'Capture'),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
+          NavigationDestination(icon: Icon(Icons.history_outlined), label: 'History'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),

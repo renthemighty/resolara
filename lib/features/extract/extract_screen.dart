@@ -146,11 +146,11 @@ class _LowConfidenceBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: Colors.amber.withAlpha(30),
+      color: AppTheme.gold.withAlpha(30),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: const Row(
         children: [
-          Icon(Icons.info_outline, color: Colors.amber, size: 18),
+          Icon(Icons.info_outline, color: AppTheme.gold, size: 18),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -223,11 +223,11 @@ class _FindingCard extends StatelessWidget {
               const SizedBox(height: 8),
               const Row(
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                  Icon(Icons.info_outline, size: 14, color: AppTheme.gold),
                   SizedBox(width: 4),
                   Text('Low confidence — please verify',
                       style:
-                          TextStyle(fontSize: 12, color: Colors.amber)),
+                          TextStyle(fontSize: 12, color: AppTheme.gold)),
                 ],
               ),
             ],
@@ -269,9 +269,9 @@ class _ConfidencePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final pct = (confidence * 100).round();
     final color = confidence >= 0.85
-        ? Colors.green
+        ? AppTheme.emerald
         : confidence >= 0.7
-            ? Colors.amber
+            ? AppTheme.gold
             : AppTheme.error;
 
     return Container(
@@ -329,7 +329,7 @@ class _ConfirmBar extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+        border: Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       child: Column(

@@ -49,7 +49,6 @@ class _ActivationScreenState extends State<ActivationScreen> {
     return Stack(
       children: [
         Scaffold(
-          backgroundColor: AppTheme.background,
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -57,20 +56,21 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(),
-                  const Text(
-                    'Resolara',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
+                  Center(
+                    child: Image.asset(
+                      'assets/images/Resolara_V5.png',
+                      height: 240,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox(height: 240),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  const SizedBox(height: 24),
+                  Text(
                     'Clinical Visualization',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                      fontSize: 16,
+                    ),
                   ),
                   const Spacer(),
                   TextField(

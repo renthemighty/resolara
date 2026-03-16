@@ -190,7 +190,7 @@ class _ReadyView extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            color: Colors.black,
+            color: AppTheme.forestTeal,
             child: Image.file(imageFile, fit: BoxFit.contain),
           ),
         ),
@@ -238,7 +238,7 @@ class _ActionBar extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: Border(top: BorderSide(color: Color(0xFF1E3D30))),
+        border: Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -255,6 +255,8 @@ class _ActionBar extends StatelessWidget {
             icon: const Icon(Icons.refresh),
             label: const Text('Regenerate'),
             style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.gold,
+              side: const BorderSide(color: AppTheme.gold),
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),

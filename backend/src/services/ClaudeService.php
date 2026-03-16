@@ -32,6 +32,7 @@ Return ONLY valid JSON with this exact structure, no other text:
       "id": "f1",
       "body_region": "anatomical region",
       "finding": "clinical finding text",
+      "layman_term": "plain English explanation a non-medical person would understand, 1-2 sentences",
       "confidence": 0.92,
       "pii_risk": false
     }

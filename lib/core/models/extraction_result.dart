@@ -2,6 +2,7 @@ class Finding {
   final String id;
   final String bodyRegion;
   final String text;
+  final String laymanTerm;
   final double confidence; // 0.0–1.0
   final bool piiRisk;
 
@@ -9,6 +10,7 @@ class Finding {
     required this.id,
     required this.bodyRegion,
     required this.text,
+    this.laymanTerm = '',
     required this.confidence,
     required this.piiRisk,
   });
@@ -18,6 +20,7 @@ class Finding {
       id: json['id'] as String? ?? '',
       bodyRegion: json['body_region'] as String? ?? '',
       text: json['finding'] as String? ?? '',
+      laymanTerm: json['layman_term'] as String? ?? '',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       piiRisk: json['pii_risk'] as bool? ?? false,
     );
@@ -28,6 +31,7 @@ class Finding {
       id: id,
       bodyRegion: bodyRegion ?? this.bodyRegion,
       text: text ?? this.text,
+      laymanTerm: laymanTerm,
       confidence: confidence,
       piiRisk: piiRisk,
     );

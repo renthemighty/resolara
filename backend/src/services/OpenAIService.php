@@ -62,15 +62,16 @@ class OpenAIService {
         $labelBlock = implode("\n", $labelLines);
         $count = count($labelLines);
 
-        return "A clean, light-toned scientific anatomical diagram of the human {$regionList}. "
-             . "Style: textbook medical illustration, soft neutral palette, white or very pale background, "
-             . "precise line art with gentle shading, no harsh contrast or dark tones. "
-             . "The diagram must include {$count} clearly visible callout labels numbered 1 through {$count}, "
-             . "each with a thin leader line pointing to the relevant anatomical structure. "
-             . "Label text should be small, legible, and placed outside the body outline. "
-             . "The labeled structures correspond to these findings:\n{$labelBlock}\n"
-             . "Educational reference illustration style. No patient data, no clinical photography, "
-             . "no photorealistic imagery. Suitable for use as a practitioner communication aid.";
+        return "A simple flat anatomical diagram of the human {$regionList}. "
+             . "Style: flat vector illustration, clean simple outlines, white background, "
+             . "soft muted colors (light beige/tan for bones, pale skin tones), "
+             . "absolutely no 3D shading, no gradients, no photorealism, no harsh contrast. "
+             . "Think: clean infographic or medical textbook line drawing. "
+             . "Place exactly {$count} small numbered circle markers (like ① ② ③) directly on the diagram "
+             . "at the relevant anatomical locations for these structures:\n{$labelBlock}\n"
+             . "The circles should be clearly visible, filled with a muted accent color, white number inside. "
+             . "No other text anywhere in the image — numbers only. "
+             . "Educational reference style. No patient data, no clinical photography.";
     }
 
     private static function call(string $url, array $payload): array {

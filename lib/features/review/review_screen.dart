@@ -14,6 +14,14 @@ import '../../core/storage/app_database.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_overlay.dart';
 
+// Unicode circled numbers ①–⑳
+String _circledNumber(int n) {
+  const circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
+                   '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+  if (n >= 1 && n <= circles.length) return circles[n - 1];
+  return '$n.';
+}
+
 class ReviewScreen extends StatefulWidget {
   final GenerationJob job;
   final List<Finding> findings;
@@ -135,6 +143,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           _Ready(imageFile: final file) => _ReadyView(
               imageFile: file,
               jobId: widget.job.jobId,
+              findings: widget.findings,
               onApprove: () => _approve(file),
               onRegenerate: _regenerate,
             ),
@@ -173,12 +182,14 @@ class _Ready extends _ReviewState {
 class _ReadyView extends StatelessWidget {
   final File imageFile;
   final String jobId;
+  final List<Finding> findings;
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
 
   const _ReadyView({
     required this.imageFile,
     required this.jobId,
+    required this.findings,
     required this.onApprove,
     required this.onRegenerate,
   });
@@ -189,14 +200,86 @@ class _ReadyView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
+          flex: 5,
           child: Container(
             color: AppTheme.forestTeal,
             child: Image.file(imageFile, fit: BoxFit.contain),
           ),
         ),
+        if (findings.isNotEmpty)
+          _FindingsLegend(findings: findings),
         _MetaBar(jobId: jobId),
         _ActionBar(onApprove: onApprove, onRegenerate: onRegenerate),
       ],
+    );
+  }
+}
+
+// ── Findings legend ───────────────────────────────────────────────────────────
+
+class _FindingsLegend extends StatelessWidget {
+  final List<Finding> findings;
+  const _FindingsLegend({required this.findings});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 180),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        border: const Border(
+          top: BorderSide(color: AppTheme.sage, width: 0.5),
+          bottom: BorderSide(color: AppTheme.sage, width: 0.5),
+        ),
+      ),
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        itemCount: findings.length,
+        separatorBuilder: (_, __) => const Divider(
+            height: 12, thickness: 0.5, color: AppTheme.sage),
+        itemBuilder: (context, i) {
+          final f = findings[i];
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _circledNumber(i + 1),
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppTheme.gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f.bodyRegion.isNotEmpty ? f.bodyRegion : f.text,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    if (f.laymanTerm.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        f.laymanTerm,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

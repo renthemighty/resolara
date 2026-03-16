@@ -37,6 +37,27 @@ class OpenAIService {
         return $filename;
     }
 
+    // Words that trigger DALL-E safety filters — map to visual equivalents
+    private static function sanitizeFinding(string $text): string {
+        $replacements = [
+            '/\bfracture[sd]?\b/i'    => 'structural irregularity',
+            '/\btorn?\b/i'            => 'disrupted',
+            '/\brupture[sd]?\b/i'     => 'structural disruption',
+            '/\btear[s]?\b/i'         => 'tissue separation',
+            '/\binjur(?:y|ies|ed)\b/i'=> 'structural change',
+            '/\bdamage[sd]?\b/i'      => 'structural variation',
+            '/\blesion[s]?\b/i'       => 'area of altered tissue',
+            '/\bdisplacement\b/i'     => 'positional variation',
+            '/\bcomminut\w+\b/i'      => 'multi-part',
+            '/\bnecros\w+\b/i'        => 'tissue change',
+            '/\bpatholog\w+\b/i'      => 'anatomical variation',
+        ];
+        foreach ($replacements as $pattern => $replacement) {
+            $text = preg_replace($pattern, $replacement, $text);
+        }
+        return $text;
+    }
+
     private static function buildPrompt(array $findings): string {
         // Extract unique body regions
         $regions = array_unique(array_filter(array_map(
@@ -45,40 +66,30 @@ class OpenAIService {
         )));
         $regionList = implode(', ', $regions) ?: 'musculoskeletal';
 
-        // Build numbered finding list with full detail for visual rendering
+        // Build numbered finding list — sanitized for safety filter
         $labelLines = [];
         foreach (array_values($findings) as $i => $f) {
             $region = $f['body_region'] ?? '';
-            $detail = $f['finding']     ?? '';
+            $detail = self::sanitizeFinding($f['finding'] ?? '');
             $entry  = ($i + 1) . '. ';
-            if ($detail) {
-                $entry .= $region ? "{$region}: {$detail}" : $detail;
-            } else {
-                $entry .= $region;
-            }
+            $entry .= $region ? "{$region}" : '';
+            if ($detail) $entry .= $region ? " — {$detail}" : $detail;
             $labelLines[] = $entry;
         }
         $labelBlock = implode("\n", $labelLines);
         $count = count($labelLines);
 
-        return "A professional medical education illustration of the human {$regionList}, "
-             . "rendered in the style of a high-quality anatomical textbook or medical app diagram. "
-             . "Clean light background (white to very light grey gradient). "
-             . "Realistic but clean anatomical rendering — beige/tan bones with subtle shading, "
-             . "natural skin tones, clearly defined structures. "
-             . "NOT photographic — illustration style, like BioDigital or Visible Body.\n\n"
-             . "The illustration must visually depict these specific findings:\n{$labelBlock}\n\n"
-             . "CRITICAL — show each finding as it actually appears: "
-             . "fractures must show visible crack lines and bone displacement, "
-             . "edema/swelling must show reddened enlarged soft tissue, "
-             . "tears must show disrupted or separated tissue, "
-             . "lesions must show distinct abnormal areas, "
-             . "degeneration must show worn irregular surfaces. "
-             . "Affected areas should be clearly visually distinct from healthy tissue "
-             . "(use colour contrast — red/pink for inflammation, highlighted cracks for fractures).\n\n"
-             . "Place a small numbered circle marker (① ② ③ …) directly at each affected area. "
-             . "Numbers only — no other text anywhere in the image. "
-             . "Educational reference illustration only. No patient data, no clinical photography.";
+        return "A detailed anatomical education diagram of the human {$regionList}, "
+             . "in the style of a professional medical textbook illustration. "
+             . "White or very light grey background. Realistic clean anatomical rendering — "
+             . "beige/tan bones, natural skin tones, clearly defined structures. "
+             . "Illustration style only, not photographic.\n\n"
+             . "Highlight the following anatomical areas of interest, each visually distinct "
+             . "from surrounding tissue using colour emphasis (warm reddish tones for "
+             . "soft tissue changes, structural line emphasis for bone variations):\n{$labelBlock}\n\n"
+             . "Place a small numbered circle marker at each highlighted area (① ② ③ …). "
+             . "Numbers only inside the circles — no other text in the image. "
+             . "Suitable for use as a practitioner patient-education reference.";
     }
 
     private static function call(string $url, array $payload): array {

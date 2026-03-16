@@ -23,6 +23,7 @@ require_once __DIR__ . '/src/handlers/JobsHandler.php';
 require_once __DIR__ . '/src/handlers/VisualizationsHandler.php';
 require_once __DIR__ . '/src/handlers/ImagesHandler.php';
 require_once __DIR__ . '/src/handlers/ConfigHandler.php';
+require_once __DIR__ . '/src/handlers/LogoutHandler.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 

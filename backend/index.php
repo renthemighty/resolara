@@ -53,6 +53,10 @@ if (empty($allowedOrigins)) {
 
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Authorization, Content-Type');
+header('Referrer-Policy: no-referrer');
+if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -73,6 +77,10 @@ if ($path === '/v1/config') {
 
 if ($path === '/v1/activate') {
     ActivateHandler::handle();
+}
+
+if ($path === '/v1/logout') {
+    LogoutHandler::handle();
 }
 
 if ($path === '/v1/jobs') {

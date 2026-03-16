@@ -11,7 +11,7 @@ class LogoutHandler {
             $db = Database::get();
             $db->prepare('DELETE FROM devices WHERE token = ?')
                ->execute([$device['token']]);
-            SecurityLog::write('logout', $device['token'], $_SERVER['REMOTE_ADDR'] ?? '');
+            SecurityLog::event('logout', 'Device logged out (id:' . $device['id'] . ')', $_SERVER['REMOTE_ADDR'] ?? '');
         }
 
         Response::json(['ok' => true]);

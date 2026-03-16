@@ -43,11 +43,15 @@ class VisualizationsHandler {
             Response::error('findings array is required');
         }
 
+        if (count($findings) > 20) {
+            Response::error('Too many findings. Maximum is 20.');
+        }
+
         // Strip any fields we don't need — keep only body_region and finding text
         $cleanFindings = array_map(fn($f) => [
-            'id'          => $f['id']          ?? '',
-            'body_region' => $f['body_region']  ?? '',
-            'finding'     => $f['finding']      ?? '',
+            'id'          => substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($f['id'] ?? '')), 0, 32),
+            'body_region' => substr(strip_tags((string)($f['body_region'] ?? '')), 0, 100),
+            'finding'     => substr(strip_tags((string)($f['finding'] ?? '')), 0, 500),
         ], $findings);
 
         $vizId = Auth::uuid();
@@ -79,9 +83,10 @@ class VisualizationsHandler {
                 'UPDATE visualizations SET status = ?, image_filename = ?, updated_at = NOW() WHERE id = ?'
             )->execute(['completed', $filename, $vizId]);
         } catch (Throwable $e) {
+            error_log('Visualization ' . $vizId . ' failed: ' . $e->getMessage());
             $db->prepare(
                 'UPDATE visualizations SET status = ?, error_message = ?, updated_at = NOW() WHERE id = ?'
-            )->execute(['failed', $e->getMessage(), $vizId]);
+            )->execute(['failed', 'Generation failed. Please try again.', $vizId]);
         }
 
         exit;

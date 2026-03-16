@@ -37,13 +37,23 @@ class JobsHandler {
     private static function createJob(): never {
         $device = Auth::require();
 
+        // Rate limit: max 10 job submissions per device per hour
+        $db = Database::get();
+        $stmt = $db->prepare(
+            'SELECT COUNT(*) FROM jobs WHERE device_token = ? AND created_at > NOW() - INTERVAL 1 HOUR'
+        );
+        $stmt->execute([$device['token']]);
+        if ((int)$stmt->fetchColumn() >= 10) {
+            Response::error('Too many submissions. Please wait before submitting again.', 429);
+        }
+
         if (empty($_FILES['report'])) {
             Response::error('report file is required');
         }
 
         $file = $_FILES['report'];
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            Response::error('Upload error: ' . $file['error']);
+            Response::error('File upload failed. Please try again.');
         }
 
         // Enforce file size limit (20 MB)
@@ -70,7 +80,6 @@ class JobsHandler {
 
         // Create job record
         $jobId = Auth::uuid();
-        $db    = Database::get();
         $db->prepare(
             'INSERT INTO jobs (id, device_token, status, image_path) VALUES (?, ?, ?, ?)'
         )->execute([$jobId, $device['token'], 'processing', $destPath]);
@@ -98,9 +107,10 @@ class JobsHandler {
                 'UPDATE jobs SET status = ?, result_json = ?, updated_at = NOW() WHERE id = ?'
             )->execute(['completed', json_encode($result), $jobId]);
         } catch (Throwable $e) {
+            error_log('Job ' . $jobId . ' failed: ' . $e->getMessage());
             $db->prepare(
                 'UPDATE jobs SET status = ?, error_message = ?, updated_at = NOW() WHERE id = ?'
-            )->execute(['failed', $e->getMessage(), $jobId]);
+            )->execute(['failed', 'Processing failed. Please try again.', $jobId]);
         }
 
         exit;

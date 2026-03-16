@@ -15,7 +15,7 @@ define('OPENAI_API_KEY',    'YOUR_OPENAI_KEY');
 define('STORAGE_PATH', '/home/DAUSER/resolara_storage');
 
 // API base URL (used in image_url responses)
-define('API_BASE_URL', 'https://api.resolara.ai');
+define('API_BASE_URL', 'https://resolara.ai/api');
 
 // Claude model to use for OCR + extraction
 define('CLAUDE_MODEL', 'claude-sonnet-4-6');

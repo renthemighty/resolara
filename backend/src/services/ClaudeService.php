@@ -64,13 +64,18 @@ PROMPT;
         $response = self::call($payload);
         $text     = $response['content'][0]['text'] ?? '';
 
-        // Strip any markdown code fences if present
-        $text = preg_replace('/^```(?:json)?\s*/m', '', $text);
-        $text = preg_replace('/\s*```$/m', '', $text);
-        $text = trim($text);
+        // Extract first JSON object from the response (Claude sometimes appends notes)
+        if (preg_match('/\{[\s\S]*"findings"[\s\S]*\}/U', $text, $match)) {
+            $text = $match[0];
+        } else {
+            // Strip markdown code fences as fallback
+            $text = preg_replace('/^```(?:json)?\s*/m', '', $text);
+            $text = preg_replace('/\s*```$/m', '', $text);
+            $text = trim($text);
+        }
 
         $parsed = json_decode($text, true);
-        if (!is_array($parsed) || !isset($parsed['findings'])) {
+        if (!is_array($parsed) || !array_key_exists('findings', $parsed)) {
             throw new RuntimeException('Claude returned unexpected format: ' . substr($text, 0, 200));
         }
         return $parsed;

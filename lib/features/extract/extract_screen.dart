@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/models/extraction_result.dart';
+import '../generate/generate_screen.dart';
 
 class ExtractScreen extends StatefulWidget {
   final ExtractionResult extraction;
@@ -49,12 +49,11 @@ class _ExtractScreenState extends State<ExtractScreen> {
       );
       return;
     }
-    // TODO: navigate to generate screen (Step E) with confirmed findings
-    // context.go('/generate', extra: ExtractionResult(...));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Generation coming in Step E.')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GenerateScreen(findings: List.unmodifiable(_findings)),
+      ),
     );
-    context.go('/home');
   }
 
   @override

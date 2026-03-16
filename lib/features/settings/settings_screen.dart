@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/auth/auth_service.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/storage/app_database.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -73,6 +74,30 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Clear all data and start from scratch'),
             leading: const Icon(Icons.delete_forever, color: AppTheme.error),
             onTap: () => _resetEverything(context),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Column(
+              children: [
+                Text(
+                  AppConfig.appName,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Version ${AppConfig.appVersion}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

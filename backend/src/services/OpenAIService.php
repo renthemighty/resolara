@@ -53,7 +53,7 @@ class OpenAIService {
             // Keep labels concise and neutral — no clinical injury language
             if ($detail) {
                 // Truncate to first 60 chars to keep the prompt manageable
-                $short = mb_substr($detail, 0, 60);
+                $short = substr($detail, 0, 60);
                 $labelLines[] = ($i + 1) . '. ' . $label . ': ' . $short;
             } elseif ($label) {
                 $labelLines[] = ($i + 1) . '. ' . $label;

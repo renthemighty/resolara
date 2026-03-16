@@ -4,7 +4,7 @@ class ImagesHandler {
     public static function handle(string $filename): never {
         Auth::require();
 
-        if (!preg_match('/^[a-f0-9_]+\.(?:jpg|jpeg|png)$/i', $filename)) {
+        if (!preg_match('/^[a-z0-9_]+\.(?:jpg|jpeg|png)$/i', $filename)) {
             Response::notFound();
         }
 

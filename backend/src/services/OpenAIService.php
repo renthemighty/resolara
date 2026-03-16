@@ -45,33 +45,40 @@ class OpenAIService {
         )));
         $regionList = implode(', ', $regions) ?: 'musculoskeletal';
 
-        // Build numbered finding labels from the actual findings
+        // Build numbered finding list with full detail for visual rendering
         $labelLines = [];
         foreach (array_values($findings) as $i => $f) {
-            $label  = $f['body_region'] ?? '';
+            $region = $f['body_region'] ?? '';
             $detail = $f['finding']     ?? '';
-            // Keep labels concise and neutral — no clinical injury language
+            $entry  = ($i + 1) . '. ';
             if ($detail) {
-                // Truncate to first 60 chars to keep the prompt manageable
-                $short = substr($detail, 0, 60);
-                $labelLines[] = ($i + 1) . '. ' . $label . ': ' . $short;
-            } elseif ($label) {
-                $labelLines[] = ($i + 1) . '. ' . $label;
+                $entry .= $region ? "{$region}: {$detail}" : $detail;
+            } else {
+                $entry .= $region;
             }
+            $labelLines[] = $entry;
         }
         $labelBlock = implode("\n", $labelLines);
         $count = count($labelLines);
 
-        return "A simple flat anatomical diagram of the human {$regionList}. "
-             . "Style: flat vector illustration, clean simple outlines, white background, "
-             . "soft muted colors (light beige/tan for bones, pale skin tones), "
-             . "absolutely no 3D shading, no gradients, no photorealism, no harsh contrast. "
-             . "Think: clean infographic or medical textbook line drawing. "
-             . "Place exactly {$count} small numbered circle markers (like ① ② ③) directly on the diagram "
-             . "at the relevant anatomical locations for these structures:\n{$labelBlock}\n"
-             . "The circles should be clearly visible, filled with a muted accent color, white number inside. "
-             . "No other text anywhere in the image — numbers only. "
-             . "Educational reference style. No patient data, no clinical photography.";
+        return "A professional medical education illustration of the human {$regionList}, "
+             . "rendered in the style of a high-quality anatomical textbook or medical app diagram. "
+             . "Clean light background (white to very light grey gradient). "
+             . "Realistic but clean anatomical rendering — beige/tan bones with subtle shading, "
+             . "natural skin tones, clearly defined structures. "
+             . "NOT photographic — illustration style, like BioDigital or Visible Body.\n\n"
+             . "The illustration must visually depict these specific findings:\n{$labelBlock}\n\n"
+             . "CRITICAL — show each finding as it actually appears: "
+             . "fractures must show visible crack lines and bone displacement, "
+             . "edema/swelling must show reddened enlarged soft tissue, "
+             . "tears must show disrupted or separated tissue, "
+             . "lesions must show distinct abnormal areas, "
+             . "degeneration must show worn irregular surfaces. "
+             . "Affected areas should be clearly visually distinct from healthy tissue "
+             . "(use colour contrast — red/pink for inflammation, highlighted cracks for fractures).\n\n"
+             . "Place a small numbered circle marker (① ② ③ …) directly at each affected area. "
+             . "Numbers only — no other text anywhere in the image. "
+             . "Educational reference illustration only. No patient data, no clinical photography.";
     }
 
     private static function call(string $url, array $payload): array {

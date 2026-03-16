@@ -1,7 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/api_client.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 
@@ -35,17 +36,22 @@ class _ActivationScreenState extends State<ActivationScreen> {
       _error = null;
     });
     try {
-      // TODO: validate code against Resolara backend
-      // DEV: accept hardcoded test code
-      if (code != '1234567890') {
-        setState(() {
-          _error = 'Activation failed. Please check your code and try again.';
-          _loading = false;
-        });
+      final response = await ApiClient.instance.dio.post(
+        '/v1/activate',
+        data: {'code': code},
+        options: Options(contentType: 'application/json'),
+      );
+      final token = response.data['token'] as String?;
+      if (token == null || token.isEmpty) {
+        setState(() => _error = 'Activation failed. Please check your code and try again.');
         return;
       }
       await _auth.saveActivationCode(code);
+      await _auth.saveToken(token);
       if (mounted) context.go('/home');
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error'] ?? 'Activation failed. Please check your code and try again.';
+      setState(() => _error = msg.toString());
     } catch (e) {
       setState(() => _error = 'Activation failed. Please check your code and try again.');
     } finally {

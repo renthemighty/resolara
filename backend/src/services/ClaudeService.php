@@ -64,14 +64,18 @@ PROMPT;
         $response = self::call($payload);
         $text     = $response['content'][0]['text'] ?? '';
 
-        // Extract first JSON object from the response (Claude sometimes appends notes)
-        if (preg_match('/\{[\s\S]*"findings"[\s\S]*\}/U', $text, $match)) {
-            $text = $match[0];
-        } else {
-            // Strip markdown code fences as fallback
-            $text = preg_replace('/^```(?:json)?\s*/m', '', $text);
-            $text = preg_replace('/\s*```$/m', '', $text);
-            $text = trim($text);
+        // Strip markdown code fences if present
+        $text = preg_replace('/^```(?:json)?\s*/m', '', $text);
+        $text = preg_replace('/\s*```$/m', '', $text);
+        $text = trim($text);
+
+        // If Claude appended notes after the JSON, extract just the JSON object
+        if (preg_match('/(\{[\s\S]*"findings"[\s\S]*\})\s*(?:[^{]|$)/s', $text, $match)) {
+            // Try the extracted portion first; keep original if it parses better
+            $candidate = $match[1];
+            if (json_decode($candidate, true) !== null) {
+                $text = $candidate;
+            }
         }
 
         $parsed = json_decode($text, true);

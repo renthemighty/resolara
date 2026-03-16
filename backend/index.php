@@ -4,7 +4,8 @@ set_time_limit(120);
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 
-$configFile = dirname(__DIR__, 1) . '/resolara_api/config.php';
+// Config lives two levels above backend/ (home dir) → ~/resolara_api/config.php
+$configFile = dirname(__DIR__, 2) . '/resolara_api/config.php';
 if (!file_exists($configFile)) {
     http_response_code(500);
     exit(json_encode(['error' => 'Server not configured']));

@@ -90,7 +90,8 @@ class VisualizationsHandler {
     private static function formatViz(array $viz): array {
         $imageUrl = null;
         if ($viz['image_filename'] && $viz['status'] === 'completed') {
-            $imageUrl = API_BASE_URL . '/v1/images/' . $viz['image_filename'];
+            $nameWithoutExt = pathinfo($viz['image_filename'], PATHINFO_FILENAME);
+            $imageUrl = API_BASE_URL . '/v1/images/' . $nameWithoutExt;
         }
         return [
             'job_id'    => $viz['id'],

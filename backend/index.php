@@ -66,7 +66,7 @@ if (preg_match('#^/v1/visualizations/([a-f0-9\-]+)$#i', $path, $m)) {
     VisualizationsHandler::handle($m[1]);
 }
 
-if (preg_match('#^/v1/images/([a-zA-Z0-9_\.]+)$#', $path, $m)) {
+if (preg_match('#^/v1/images/([a-z0-9_]+)$#i', $path, $m)) {
     ImagesHandler::handle($m[1]);
 }
 

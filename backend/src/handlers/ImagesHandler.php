@@ -4,13 +4,20 @@ class ImagesHandler {
     public static function handle(string $filename): never {
         Auth::require();
 
-        if (!preg_match('/^[a-z0-9_]+\.(?:jpg|jpeg|png)$/i', $filename)) {
+        if (!preg_match('/^[a-z0-9_]+$/i', $filename)) {
             Response::notFound();
         }
 
-        $path = STORAGE_PATH . '/generated/' . $filename;
+        $path = null;
+        foreach (['jpg', 'jpeg', 'png'] as $ext) {
+            $candidate = STORAGE_PATH . '/generated/' . $filename . '.' . $ext;
+            if (file_exists($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
 
-        if (!file_exists($path)) {
+        if ($path === null) {
             Response::notFound();
         }
 

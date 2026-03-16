@@ -20,5 +20,5 @@ define('API_BASE_URL', 'https://api.resolara.ai');
 // Claude model to use for OCR + extraction
 define('CLAUDE_MODEL', 'claude-sonnet-4-6');
 
-// DALL-E model for image generation
-define('DALLE_MODEL', 'dall-e-3');
+// Image generation model — gpt-image-1 for flat style + text label support
+define('DALLE_MODEL', 'gpt-image-1');

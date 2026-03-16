@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -69,13 +70,12 @@ Future<AppDatabase> openAppDatabase() async {
   const storage = FlutterSecureStorage();
   const keyName = 'resolara_db_key';
 
-  // Generate and persist a DB key on first run (for future SQLCipher use)
+  // Generate and persist a crypto-random DB key on first run
   var dbKey = await storage.read(key: keyName);
   if (dbKey == null) {
-    // Simple random key using Dart's DateTime + hash — replace with
-    // crypto-random bytes when adding SQLCipher in Phase 2
-    dbKey = DateTime.now().microsecondsSinceEpoch.toRadixString(16) +
-        Object().hashCode.toRadixString(16);
+    final rng = Random.secure();
+    final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
+    dbKey = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     await storage.write(key: keyName, value: dbKey);
   }
 

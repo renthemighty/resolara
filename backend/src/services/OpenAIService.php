@@ -5,57 +5,44 @@ class OpenAIService {
 
     /**
      * Generate an anatomical visualization from confirmed findings.
-     * Downloads the image, saves it to storage, returns local filename.
+     * Saves the image to storage and returns the local filename.
      */
     public static function generateVisualization(array $findings): string {
         $prompt = self::buildPrompt($findings);
 
         $payload = [
-            'model'   => DALLE_MODEL,
+            'model'   => DALLE_MODEL,   // gpt-image-1
             'prompt'  => $prompt,
             'n'       => 1,
             'size'    => '1024x1024',
-            'quality' => 'standard',
+            'quality' => 'high',
         ];
 
         $response = self::call(self::IMAGE_URL, $payload);
-        $imageUrl = $response['data'][0]['url'] ?? null;
 
-        if (!$imageUrl) {
-            throw new RuntimeException('OpenAI returned no image URL');
-        }
+        // gpt-image-1 returns base64 directly; dall-e-3 returns a URL
+        $b64      = $response['data'][0]['b64_json'] ?? null;
+        $imageUrl = $response['data'][0]['url']      ?? null;
 
-        // Download and store the image (DALL-E URLs expire in ~1 hour)
-        $filename = 'viz_' . bin2hex(random_bytes(12)) . '.jpg';
+        $filename = 'viz_' . bin2hex(random_bytes(12)) . '.png';
         $destPath = STORAGE_PATH . '/generated/' . $filename;
 
-        $imageData = file_get_contents($imageUrl);
-        if ($imageData === false) {
-            throw new RuntimeException('Failed to download generated image');
+        if ($b64 !== null) {
+            $imageData = base64_decode($b64);
+            if ($imageData === false) {
+                throw new RuntimeException('Failed to decode base64 image from API');
+            }
+        } elseif ($imageUrl !== null) {
+            $imageData = file_get_contents($imageUrl);
+            if ($imageData === false) {
+                throw new RuntimeException('Failed to download generated image');
+            }
+        } else {
+            throw new RuntimeException('API returned neither b64_json nor url');
         }
+
         file_put_contents($destPath, $imageData);
         return $filename;
-    }
-
-    // Words that trigger DALL-E safety filters — map to visual equivalents
-    private static function sanitizeFinding(string $text): string {
-        $replacements = [
-            '/\bfracture[sd]?\b/i'    => 'structural irregularity',
-            '/\btorn?\b/i'            => 'disrupted',
-            '/\brupture[sd]?\b/i'     => 'structural disruption',
-            '/\btear[s]?\b/i'         => 'tissue separation',
-            '/\binjur(?:y|ies|ed)\b/i'=> 'structural change',
-            '/\bdamage[sd]?\b/i'      => 'structural variation',
-            '/\blesion[s]?\b/i'       => 'area of altered tissue',
-            '/\bdisplacement\b/i'     => 'positional variation',
-            '/\bcomminut\w+\b/i'      => 'multi-part',
-            '/\bnecros\w+\b/i'        => 'tissue change',
-            '/\bpatholog\w+\b/i'      => 'anatomical variation',
-        ];
-        foreach ($replacements as $pattern => $replacement) {
-            $text = preg_replace($pattern, $replacement, $text);
-        }
-        return $text;
     }
 
     private static function buildPrompt(array $findings): string {
@@ -66,30 +53,32 @@ class OpenAIService {
         )));
         $regionList = implode(', ', $regions) ?: 'musculoskeletal';
 
-        // Build numbered finding list — sanitized for safety filter
+        // Build labelled finding list — body region + short clinical detail
         $labelLines = [];
         foreach (array_values($findings) as $i => $f) {
             $region = $f['body_region'] ?? '';
-            $detail = self::sanitizeFinding($f['finding'] ?? '');
-            $entry  = ($i + 1) . '. ';
-            $entry .= $region ? "{$region}" : '';
-            if ($detail) $entry .= $region ? " — {$detail}" : $detail;
+            $detail = $f['finding']     ?? '';
+            $entry  = ($i + 1) . '. ' . ($region ?: 'structure');
+            if ($detail) $entry .= ': ' . substr($detail, 0, 80);
             $labelLines[] = $entry;
         }
         $labelBlock = implode("\n", $labelLines);
-        $count = count($labelLines);
+        $count      = count($labelLines);
 
-        return "A detailed anatomical education diagram of the human {$regionList}, "
-             . "in the style of a professional medical textbook illustration. "
-             . "White or very light grey background. Realistic clean anatomical rendering — "
-             . "beige/tan bones, natural skin tones, clearly defined structures. "
-             . "Illustration style only, not photographic.\n\n"
-             . "Highlight the following anatomical areas of interest, each visually distinct "
-             . "from surrounding tissue using colour emphasis (warm reddish tones for "
-             . "soft tissue changes, structural line emphasis for bone variations):\n{$labelBlock}\n\n"
-             . "Place a small numbered circle marker at each highlighted area (① ② ③ …). "
-             . "Numbers only inside the circles — no other text in the image. "
-             . "Suitable for use as a practitioner patient-education reference.";
+        return "Create a clean flat medical education illustration of the human {$regionList}.\n\n"
+             . "Style: flat 2D anatomical diagram, vector illustration aesthetic, "
+             . "white background, simple clean outlines, muted colour palette "
+             . "(light beige/tan for bone, soft skin tones), minimal shading. "
+             . "Think: clear infographic-style medical diagram, not photorealistic.\n\n"
+             . "The diagram must visually show these {$count} findings, each clearly marked:\n"
+             . "{$labelBlock}\n\n"
+             . "For each finding draw a callout line from a small filled circle marker "
+             . "to a text label placed outside the body outline. "
+             . "Use the exact label text from the list above for each callout. "
+             . "Affected areas should use subtle colour cues (soft red/pink wash for "
+             . "inflammation or swelling, dashed outline for structural changes). "
+             . "Labels should be small, legible, sans-serif. "
+             . "This is a patient-education reference illustration for licensed practitioners.";
     }
 
     private static function call(string $url, array $payload): array {
@@ -102,7 +91,7 @@ class OpenAIService {
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . OPENAI_API_KEY,
             ],
-            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_TIMEOUT        => 180,
         ]);
         $body = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

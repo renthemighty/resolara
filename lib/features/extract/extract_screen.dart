@@ -58,7 +58,6 @@ class _ExtractScreenState extends State<ExtractScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasPii = widget.extraction.hasPiiWarnings;
     final hasLowConf = _findings.any((f) => f.isLowConfidence);
 
     return Scaffold(
@@ -71,7 +70,6 @@ class _ExtractScreenState extends State<ExtractScreen> {
       ),
       body: Column(
         children: [
-          if (hasPii) _PiiBanner(items: widget.extraction.piiDetected),
           if (hasLowConf) const _LowConfidenceBanner(),
           Expanded(
             child: _findings.isEmpty
@@ -98,46 +96,6 @@ class _ExtractScreenState extends State<ExtractScreen> {
 }
 
 // ── Banners ──────────────────────────────────────────────────────────────────
-
-class _PiiBanner extends StatelessWidget {
-  final List<String> items;
-  const _PiiBanner({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppTheme.error.withAlpha(20),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: AppTheme.error, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Possible identifying information detected',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.error,
-                        fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(
-                  'Review and remove before proceeding: ${items.join(", ")}',
-                  style: const TextStyle(
-                      color: AppTheme.error, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _LowConfidenceBanner extends StatelessWidget {
   const _LowConfidenceBanner();
@@ -180,7 +138,6 @@ class _FindingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isLow = finding.isLowConfidence;
-    final hasPii = finding.piiRisk;
 
     return Card(
       child: Padding(
@@ -207,18 +164,6 @@ class _FindingCard extends StatelessWidget {
             Text(finding.text,
                 style: const TextStyle(
                     fontSize: 15, color: AppTheme.textPrimary)),
-            if (hasPii) ...[
-              const SizedBox(height: 8),
-              const Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded,
-                      size: 14, color: AppTheme.error),
-                  SizedBox(width: 4),
-                  Text('May contain identifying information',
-                      style: TextStyle(fontSize: 12, color: AppTheme.error)),
-                ],
-              ),
-            ],
             if (isLow) ...[
               const SizedBox(height: 8),
               const Row(

@@ -1,0 +1,49 @@
+name: resolara
+description: Resolara — mobile-first clinical visualization for licensed healthcare professionals.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # HTTP
+  dio: ^5.8.0+1
+
+  # Secure token storage
+  flutter_secure_storage: ^9.2.4
+
+  # Local encrypted DB
+  drift: ^2.23.1
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Camera / image input
+  image_picker: ^1.1.2
+  file_picker: ^8.3.4
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.1
+  drift_dev: ^2.23.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

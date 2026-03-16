@@ -1,3 +1,5 @@
+import '../config/app_config.dart';
+
 enum GenerationJobStatus { pending, processing, completed, failed }
 
 class GenerationJob {
@@ -16,10 +18,24 @@ class GenerationJob {
   });
 
   factory GenerationJob.fromJson(Map<String, dynamic> json) {
+    // Rewrite the image URL to use the app's current base URL so it works
+    // through SSH tunnels or after server migrations
+    String? imageUrl = json['image_url'] as String?;
+    if (imageUrl != null) {
+      final uri = Uri.tryParse(imageUrl);
+      final base = Uri.tryParse(AppConfig.apiBaseUrl);
+      if (uri != null && base != null) {
+        imageUrl = uri.replace(
+          scheme: base.scheme,
+          host: base.host,
+          port: base.hasPort ? base.port : null,
+        ).toString();
+      }
+    }
     return GenerationJob(
       jobId: json['job_id'] as String,
       status: _parseStatus(json['status'] as String? ?? ''),
-      imageUrl: json['image_url'] as String?,
+      imageUrl: imageUrl,
       error: json['error'] as String?,
     );
   }

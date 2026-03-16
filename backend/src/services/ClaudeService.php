@@ -9,7 +9,10 @@ class ClaudeService {
      */
     public static function extractFindings(string $imagePath): array {
         $imageData   = base64_encode(file_get_contents($imagePath));
-        $imageType   = 'image/jpeg';
+        $finfo       = new finfo(FILEINFO_MIME_TYPE);
+        $detected    = $finfo->file($imagePath);
+        $allowed     = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $imageType   = in_array($detected, $allowed, true) ? $detected : 'image/jpeg';
 
         $systemPrompt = <<<PROMPT
 You are a medical report analyzer for a clinical visualization system used by licensed healthcare professionals.

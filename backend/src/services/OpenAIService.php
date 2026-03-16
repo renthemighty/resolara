@@ -38,28 +38,26 @@ class OpenAIService {
     }
 
     private static function buildPrompt(array $findings): string {
-        $lines = [];
+        // Extract unique body regions for the illustration focus
+        $regions = array_unique(array_filter(array_map(
+            fn($f) => $f['body_region'] ?? '',
+            $findings
+        )));
+        $regionList = implode(', ', $regions) ?: 'musculoskeletal';
+
+        // Describe structures to highlight without clinical injury language
+        $structures = [];
         foreach ($findings as $f) {
-            $region  = $f['body_region'] ?? 'unknown region';
-            $finding = $f['finding']     ?? '';
-            $lines[] = "- {$region}: {$finding}";
+            $region = $f['body_region'] ?? '';
+            if ($region) $structures[] = $region;
         }
-        $findingsList = implode("\n", $lines);
+        $structureList = implode(', ', array_unique($structures));
 
-        return <<<PROMPT
-Create a clean, professional 2D anatomical medical illustration for clinical education.
-
-Show the following findings with labeled anatomical structures:
-{$findingsList}
-
-Style requirements:
-- Medical diagram style, suitable for clinical communication
-- Clear labeled arrows or callouts for each finding
-- White or light grey background
-- No patient information, no names, no identifiers
-- Anatomically accurate, educational purpose only
-- Clean lines, professional medical illustration aesthetic
-PROMPT;
+        return "A detailed scientific anatomical illustration of the human {$regionList} "
+             . "showing internal structures including bones, ligaments, tendons and soft tissue. "
+             . "Textbook diagram style with labeled anatomical landmarks. "
+             . "Clean white background, educational illustration, no text overlays, "
+             . "precise anatomical detail, professional medical reference art style.";
     }
 
     private static function call(string $url, array $payload): array {

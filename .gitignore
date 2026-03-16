@@ -1,0 +1,61 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.g.dart
+*.freezed.dart
+
+# Pub
+.pub-cache/
+.pub/
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+android/app/*.jks
+android/app/*.keystore
+
+# iOS
+ios/Pods/
+ios/Flutter/flutter_export_environment.sh
+ios/.symlinks/
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Runner/GoogleService-Info.plist
+*.ipa
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/ephemeral/
+
+# Environment / Secrets
+.env
+.env.*
+*.pem
+*.p12
+*.key
+secrets/
+config/secrets.dart
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# macOS system
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+
+# SQLite / local DB
+*.db
+*.sqlite

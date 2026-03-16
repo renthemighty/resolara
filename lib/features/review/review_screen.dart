@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
@@ -7,14 +8,17 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
+import '../../core/models/extraction_result.dart';
 import '../../core/models/generation_job.dart';
+import '../../core/storage/app_database.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_overlay.dart';
 
 class ReviewScreen extends StatefulWidget {
   final GenerationJob job;
+  final List<Finding> findings;
 
-  const ReviewScreen({super.key, required this.job});
+  const ReviewScreen({super.key, required this.job, required this.findings});
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -65,14 +69,32 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _approve(File imageFile) async {
     setState(() => _state = const _Saving());
     try {
+      final now = DateTime.now();
       final dir = await getApplicationDocumentsDirectory();
       final savedDir = Directory(p.join(dir.path, 'approved_visualizations'));
       if (!savedDir.existsSync()) savedDir.createSync(recursive: true);
 
-      final filename =
-          'resolara_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filename = 'resolara_${now.millisecondsSinceEpoch}.jpg';
       final dest = File(p.join(savedDir.path, filename));
       await imageFile.copy(dest.path);
+
+      // Write metadata record to local DB
+      final db = await openAppDatabase();
+      final regions = widget.findings
+          .map((f) => f.bodyRegion)
+          .toSet()
+          .toList()
+          .join(',');
+      final retainUntil =
+          now.add(const Duration(days: 90)).millisecondsSinceEpoch;
+      await db.insertVisualization(VisualizationsCompanion(
+        jobId: Value(widget.job.jobId),
+        imagePath: Value(dest.path),
+        createdAt: Value(now.millisecondsSinceEpoch),
+        bodyRegions: Value(regions),
+        findingCount: Value(widget.findings.length),
+        retainUntil: Value(retainUntil),
+      ));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,9 +103,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
       context.go('/history');
     } catch (_) {
       if (mounted) setState(() => _state = _Ready(imageFile));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Save failed. Please try again.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Save failed. Please try again.')),
+        );
+      }
     }
   }
 

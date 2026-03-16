@@ -40,7 +40,10 @@ class _GenerateScreenState extends State<GenerateScreen> {
           if (!mounted) return;
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => ReviewScreen(job: job),
+              builder: (_) => ReviewScreen(
+                job: job,
+                findings: widget.findings,
+              ),
             ),
           );
           return;

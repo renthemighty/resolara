@@ -65,9 +65,12 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 // Logo — top portion of screen
                 Expanded(
                   flex: 6,
-                  child: Center(
+                  child: Align(
+                    alignment: const Alignment(0, 0.5),
                     child: Image.asset(
                       'assets/images/SMALL-Resolara_V5.png',
+                      height: 180,
+                      width: 180,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const SizedBox(),
                     ),

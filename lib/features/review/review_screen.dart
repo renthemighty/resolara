@@ -201,9 +201,21 @@ class _ReadyView extends StatelessWidget {
       children: [
         Expanded(
           flex: 5,
-          child: Container(
-            color: AppTheme.forestTeal,
-            child: Image.file(imageFile, fit: BoxFit.contain),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              PageRouteBuilder(
+                opaque: false,
+                pageBuilder: (_, __, ___) =>
+                    _FullScreenImage(imageFile: imageFile),
+              ),
+            ),
+            child: Container(
+              color: AppTheme.forestTeal,
+              child: Hero(
+                tag: 'viz_preview',
+                child: Image.file(imageFile, fit: BoxFit.contain),
+              ),
+            ),
           ),
         ),
         if (findings.isNotEmpty)
@@ -211,6 +223,50 @@ class _ReadyView extends StatelessWidget {
         _MetaBar(jobId: jobId),
         _ActionBar(onApprove: onApprove, onRegenerate: onRegenerate),
       ],
+    );
+  }
+}
+
+// ── Full-screen image overlay ─────────────────────────────────────────────────
+
+class _FullScreenImage extends StatelessWidget {
+  final File imageFile;
+  const _FullScreenImage({required this.imageFile});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: Hero(
+                  tag: 'viz_preview',
+                  child: Image.file(imageFile, fit: BoxFit.contain),
+                ),
+              ),
+              Positioned(
+                top: 12,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: const Icon(Icons.close, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -256,7 +312,7 @@ class _FindingsLegend extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      f.bodyRegion.isNotEmpty ? f.bodyRegion : f.text,
+                      f.text.isNotEmpty ? f.text : f.bodyRegion,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

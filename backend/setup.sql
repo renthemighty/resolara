@@ -44,6 +44,13 @@ CREATE TABLE IF NOT EXISTS visualizations (
     INDEX idx_device (device_token)
 );
 
+CREATE TABLE IF NOT EXISTS activation_attempts (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    ip           VARCHAR(45)  NOT NULL,
+    attempted_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip_time (ip, attempted_at)
+);
+
 -- Seed demo activation codes
 INSERT IGNORE INTO activation_codes (code, description, max_activations) VALUES
     ('RESOLARA-DEMO-001', 'Demo activation 1', 10),

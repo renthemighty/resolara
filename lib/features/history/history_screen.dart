@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/secure_file_storage.dart';
 import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -85,9 +87,23 @@ class _EmptyHistory extends StatelessWidget {
 
 // ── History card ──────────────────────────────────────────────────────────────
 
-class _HistoryCard extends StatelessWidget {
+class _HistoryCard extends StatefulWidget {
   final Visualization record;
   const _HistoryCard({required this.record});
+
+  @override
+  State<_HistoryCard> createState() => _HistoryCardState();
+}
+
+class _HistoryCardState extends State<_HistoryCard> {
+  late final Future<Uint8List?> _thumbFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _thumbFuture =
+        SecureFileStorage.readDecrypted(File(widget.record.imagePath));
+  }
 
   String _formatDate(int ms) {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
@@ -102,15 +118,14 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageFile = File(record.imagePath);
-    final regions = record.bodyRegions.isNotEmpty
-        ? record.bodyRegions.split(',').map((s) => s.trim()).join(' · ')
+    final regions = widget.record.bodyRegions.isNotEmpty
+        ? widget.record.bodyRegions.split(',').map((s) => s.trim()).join(' · ')
         : 'Unknown region';
 
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => HistoryDetailScreen(record: record),
+          builder: (_) => HistoryDetailScreen(record: widget.record),
         ),
       ),
       child: Card(
@@ -122,13 +137,33 @@ class _HistoryCard extends StatelessWidget {
               child: SizedBox(
                 width: 88,
                 height: 88,
-                child: imageFile.existsSync()
-                    ? Image.file(imageFile, fit: BoxFit.cover)
-                    : const ColoredBox(
+                child: FutureBuilder<Uint8List?>(
+                  future: _thumbFuture,
+                  builder: (context, snap) {
+                    if (snap.connectionState != ConnectionState.done) {
+                      return const ColoredBox(
                         color: AppTheme.surface,
-                        child: Icon(Icons.image_outlined,
-                            color: AppTheme.textSecondary),
-                      ),
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.accent),
+                          ),
+                        ),
+                      );
+                    }
+                    if (snap.data != null) {
+                      return Image.memory(snap.data!, fit: BoxFit.cover);
+                    }
+                    return const ColoredBox(
+                      color: AppTheme.surface,
+                      child: Icon(Icons.image_outlined,
+                          color: AppTheme.textSecondary),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -149,13 +184,13 @@ class _HistoryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${record.findingCount} finding${record.findingCount == 1 ? '' : 's'}',
+                      '${widget.record.findingCount} finding${widget.record.findingCount == 1 ? '' : 's'}',
                       style: const TextStyle(
                           fontSize: 13, color: AppTheme.textSecondary),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _formatDate(record.createdAt),
+                      _formatDate(widget.record.createdAt),
                       style: const TextStyle(
                           fontSize: 12, color: AppTheme.textSecondary),
                     ),

@@ -17,15 +17,39 @@ require_once __DIR__ . '/src/Response.php';
 require_once __DIR__ . '/src/Auth.php';
 require_once __DIR__ . '/src/services/ClaudeService.php';
 require_once __DIR__ . '/src/services/OpenAIService.php';
+require_once __DIR__ . '/src/SecurityLog.php';
 require_once __DIR__ . '/src/handlers/ActivateHandler.php';
 require_once __DIR__ . '/src/handlers/JobsHandler.php';
 require_once __DIR__ . '/src/handlers/VisualizationsHandler.php';
 require_once __DIR__ . '/src/handlers/ImagesHandler.php';
 require_once __DIR__ . '/src/handlers/ConfigHandler.php';
 
+// ── HTTPS enforcement ─────────────────────────────────────────────────────
+
+if (defined('FORCE_HTTPS') && FORCE_HTTPS) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+               || ($_SERVER['SERVER_PORT'] ?? 80) == 443
+               || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    if (!$isHttps) {
+        header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+        exit;
+    }
+}
+
 // ── CORS ──────────────────────────────────────────────────────────────────
 
-header('Access-Control-Allow-Origin: *');
+$origin         = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigins = defined('ALLOWED_ORIGINS')
+    ? array_map('trim', explode(',', ALLOWED_ORIGINS))
+    : [];
+
+if (empty($allowedOrigins)) {
+    header('Access-Control-Allow-Origin: *');
+} elseif (!empty($origin) && in_array($origin, $allowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
+}
+
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Authorization, Content-Type');
 

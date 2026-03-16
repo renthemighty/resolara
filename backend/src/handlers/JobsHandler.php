@@ -46,6 +46,11 @@ class JobsHandler {
             Response::error('Upload error: ' . $file['error']);
         }
 
+        // Enforce file size limit (20 MB)
+        if ($file['size'] > 20 * 1024 * 1024) {
+            Response::error('File too large. Maximum upload size is 20 MB.', 413);
+        }
+
         // Validate file type by MIME sniff
         $finfo    = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file['tmp_name']);

@@ -1,13 +1,29 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/secure_file_storage.dart';
 
-class HistoryDetailScreen extends StatelessWidget {
+class HistoryDetailScreen extends StatefulWidget {
   final Visualization record;
 
   const HistoryDetailScreen({super.key, required this.record});
+
+  @override
+  State<HistoryDetailScreen> createState() => _HistoryDetailScreenState();
+}
+
+class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
+  late final Future<Uint8List?> _imageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageFuture =
+        SecureFileStorage.readDecrypted(File(widget.record.imagePath));
+  }
 
   String _formatDate(int ms) {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
@@ -35,8 +51,7 @@ class HistoryDetailScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style:
-                TextButton.styleFrom(foregroundColor: AppTheme.error),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -46,10 +61,9 @@ class HistoryDetailScreen extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     final db = await openAppDatabase();
-    await db.deleteVisualization(record.id);
+    await db.deleteVisualization(widget.record.id);
 
-    // Also delete the image file
-    final imageFile = File(record.imagePath);
+    final imageFile = File(widget.record.imagePath);
     if (imageFile.existsSync()) imageFile.deleteSync();
 
     if (context.mounted) context.go('/history');
@@ -57,9 +71,8 @@ class HistoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageFile = File(record.imagePath);
-    final regions = record.bodyRegions.isNotEmpty
-        ? record.bodyRegions.split(',').map((s) => s.trim()).toList()
+    final regions = widget.record.bodyRegions.isNotEmpty
+        ? widget.record.bodyRegions.split(',').map((s) => s.trim()).toList()
         : <String>[];
 
     return Scaffold(
@@ -79,11 +92,22 @@ class HistoryDetailScreen extends StatelessWidget {
           Expanded(
             child: Container(
               color: Colors.black,
-              child: imageFile.existsSync()
-                  ? Image.file(imageFile, fit: BoxFit.contain)
-                  : const Center(
+              child: FutureBuilder<Uint8List?>(
+                future: _imageFuture,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const Center(
+                        child: CircularProgressIndicator(
+                            color: AppTheme.accent));
+                  }
+                  if (snap.data != null) {
+                    return Image.memory(snap.data!, fit: BoxFit.contain);
+                  }
+                  return const Center(
                       child: Icon(Icons.broken_image_outlined,
-                          size: 64, color: AppTheme.textSecondary)),
+                          size: 64, color: AppTheme.textSecondary));
+                },
+              ),
             ),
           ),
           Container(
@@ -94,12 +118,12 @@ class HistoryDetailScreen extends StatelessWidget {
               children: [
                 _MetaRow(
                     icon: Icons.calendar_today_outlined,
-                    label: _formatDate(record.createdAt)),
+                    label: _formatDate(widget.record.createdAt)),
                 const SizedBox(height: 10),
                 _MetaRow(
                     icon: Icons.pin_outlined,
                     label:
-                        '${record.findingCount} finding${record.findingCount == 1 ? '' : 's'}'),
+                        '${widget.record.findingCount} finding${widget.record.findingCount == 1 ? '' : 's'}'),
                 if (regions.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   _MetaRow(

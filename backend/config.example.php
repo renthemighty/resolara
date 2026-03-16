@@ -22,3 +22,12 @@ define('CLAUDE_MODEL', 'claude-sonnet-4-6');
 
 // Image generation model — gpt-image-1 for flat style + text label support
 define('DALLE_MODEL', 'gpt-image-1');
+
+// Security: comma-separated allowed CORS origins. Empty = allow all (dev only).
+define('ALLOWED_ORIGINS', 'https://resolara.ai');
+
+// Redirect HTTP to HTTPS. Enable once DNS + SSL cert are confirmed.
+define('FORCE_HTTPS', false);
+
+// Directory for security event logs (must be outside web root).
+define('LOG_PATH', '/home/DAUSER/resolara_logs');

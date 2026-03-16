@@ -11,6 +11,7 @@ import '../../core/api/api_client.dart';
 import '../../core/models/extraction_result.dart';
 import '../../core/models/generation_job.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/secure_file_storage.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_overlay.dart';
 
@@ -61,12 +62,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         return;
       }
 
-      final dir = await getTemporaryDirectory();
-      final tmpFile = File(
-          p.join(dir.path, 'resolara_preview_${widget.job.jobId}.jpg'));
-      await tmpFile.writeAsBytes(response.data!);
-
-      if (mounted) setState(() => _state = _Ready(tmpFile));
+      // Keep bytes in memory — no plaintext temp file on disk
+      if (mounted) setState(() => _state = _Ready(response.data!));
     } catch (e) {
       if (mounted) {
         setState(() => _state = _Failed('Failed to load visualization: $e'));
@@ -74,7 +71,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
-  Future<void> _approve(File imageFile) async {
+  Future<void> _approve(Uint8List imageBytes) async {
     setState(() => _state = const _Saving());
     try {
       final now = DateTime.now();
@@ -82,9 +79,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final savedDir = Directory(p.join(dir.path, 'approved_visualizations'));
       if (!savedDir.existsSync()) savedDir.createSync(recursive: true);
 
-      final filename = 'resolara_${now.millisecondsSinceEpoch}.jpg';
+      final filename = 'resolara_${now.millisecondsSinceEpoch}.enc';
       final dest = File(p.join(savedDir.path, filename));
-      await imageFile.copy(dest.path);
+
+      // Encrypt the image bytes before writing to disk
+      await SecureFileStorage.writeEncrypted(dest, imageBytes);
 
       // Write metadata record to local DB
       final db = await openAppDatabase();
@@ -110,7 +109,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       );
       context.go('/history');
     } catch (_) {
-      if (mounted) setState(() => _state = _Ready(imageFile));
+      if (mounted) setState(() => _state = _Ready(imageBytes));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Save failed. Please try again.')),
@@ -120,7 +119,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   void _regenerate() {
-    Navigator.of(context).pop(); // back to GenerateScreen which will retry
+    Navigator.of(context).pop();
   }
 
   @override
@@ -140,11 +139,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
               message: msg,
               onRetry: _loadImage,
             ),
-          _Ready(imageFile: final file) => _ReadyView(
-              imageFile: file,
+          _Ready(imageBytes: final bytes) => _ReadyView(
+              imageBytes: bytes,
               jobId: widget.job.jobId,
               findings: widget.findings,
-              onApprove: () => _approve(file),
+              onApprove: () => _approve(bytes),
               onRegenerate: _regenerate,
             ),
         },
@@ -173,21 +172,21 @@ class _Failed extends _ReviewState {
 }
 
 class _Ready extends _ReviewState {
-  final File imageFile;
-  const _Ready(this.imageFile);
+  final Uint8List imageBytes;
+  const _Ready(this.imageBytes);
 }
 
 // ── Ready view ────────────────────────────────────────────────────────────────
 
 class _ReadyView extends StatelessWidget {
-  final File imageFile;
+  final Uint8List imageBytes;
   final String jobId;
   final List<Finding> findings;
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
 
   const _ReadyView({
-    required this.imageFile,
+    required this.imageBytes,
     required this.jobId,
     required this.findings,
     required this.onApprove,
@@ -206,14 +205,14 @@ class _ReadyView extends StatelessWidget {
               PageRouteBuilder(
                 opaque: false,
                 pageBuilder: (_, __, ___) =>
-                    _FullScreenImage(imageFile: imageFile),
+                    _FullScreenImage(imageBytes: imageBytes),
               ),
             ),
             child: Container(
               color: AppTheme.forestTeal,
               child: Hero(
                 tag: 'viz_preview',
-                child: Image.file(imageFile, fit: BoxFit.contain),
+                child: Image.memory(imageBytes, fit: BoxFit.contain),
               ),
             ),
           ),
@@ -230,8 +229,8 @@ class _ReadyView extends StatelessWidget {
 // ── Full-screen image overlay ─────────────────────────────────────────────────
 
 class _FullScreenImage extends StatelessWidget {
-  final File imageFile;
-  const _FullScreenImage({required this.imageFile});
+  final Uint8List imageBytes;
+  const _FullScreenImage({required this.imageBytes});
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +244,7 @@ class _FullScreenImage extends StatelessWidget {
               Center(
                 child: Hero(
                   tag: 'viz_preview',
-                  child: Image.file(imageFile, fit: BoxFit.contain),
+                  child: Image.memory(imageBytes, fit: BoxFit.contain),
                 ),
               ),
               Positioned(
@@ -281,9 +280,9 @@ class _FindingsLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(maxHeight: 180),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: AppTheme.sage, width: 0.5),
           bottom: BorderSide(color: AppTheme.sage, width: 0.5),
         ),

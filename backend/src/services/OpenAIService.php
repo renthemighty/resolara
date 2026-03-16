@@ -38,26 +38,39 @@ class OpenAIService {
     }
 
     private static function buildPrompt(array $findings): string {
-        // Extract unique body regions for the illustration focus
+        // Extract unique body regions
         $regions = array_unique(array_filter(array_map(
             fn($f) => $f['body_region'] ?? '',
             $findings
         )));
         $regionList = implode(', ', $regions) ?: 'musculoskeletal';
 
-        // Describe structures to highlight without clinical injury language
-        $structures = [];
-        foreach ($findings as $f) {
-            $region = $f['body_region'] ?? '';
-            if ($region) $structures[] = $region;
+        // Build numbered finding labels from the actual findings
+        $labelLines = [];
+        foreach (array_values($findings) as $i => $f) {
+            $label  = $f['body_region'] ?? '';
+            $detail = $f['finding']     ?? '';
+            // Keep labels concise and neutral — no clinical injury language
+            if ($detail) {
+                // Truncate to first 60 chars to keep the prompt manageable
+                $short = mb_substr($detail, 0, 60);
+                $labelLines[] = ($i + 1) . '. ' . $label . ': ' . $short;
+            } elseif ($label) {
+                $labelLines[] = ($i + 1) . '. ' . $label;
+            }
         }
-        $structureList = implode(', ', array_unique($structures));
+        $labelBlock = implode("\n", $labelLines);
+        $count = count($labelLines);
 
-        return "A detailed scientific anatomical illustration of the human {$regionList} "
-             . "showing internal structures including bones, ligaments, tendons and soft tissue. "
-             . "Textbook diagram style with labeled anatomical landmarks. "
-             . "Clean white background, educational illustration, no text overlays, "
-             . "precise anatomical detail, professional medical reference art style.";
+        return "A clean, light-toned scientific anatomical diagram of the human {$regionList}. "
+             . "Style: textbook medical illustration, soft neutral palette, white or very pale background, "
+             . "precise line art with gentle shading, no harsh contrast or dark tones. "
+             . "The diagram must include {$count} clearly visible callout labels numbered 1 through {$count}, "
+             . "each with a thin leader line pointing to the relevant anatomical structure. "
+             . "Label text should be small, legible, and placed outside the body outline. "
+             . "The labeled structures correspond to these findings:\n{$labelBlock}\n"
+             . "Educational reference illustration style. No patient data, no clinical photography, "
+             . "no photorealistic imagery. Suitable for use as a practitioner communication aid.";
     }
 
     private static function call(string $url, array $payload): array {

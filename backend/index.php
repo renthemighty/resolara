@@ -21,6 +21,7 @@ require_once __DIR__ . '/src/handlers/ActivateHandler.php';
 require_once __DIR__ . '/src/handlers/JobsHandler.php';
 require_once __DIR__ . '/src/handlers/VisualizationsHandler.php';
 require_once __DIR__ . '/src/handlers/ImagesHandler.php';
+require_once __DIR__ . '/src/handlers/ConfigHandler.php';
 
 // ── CORS ──────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,10 @@ $path = '/' . trim($path, '/');
 
 // Strip /api prefix if present (when deployed under /api/)
 $path = preg_replace('#^/api#', '', $path);
+
+if ($path === '/v1/config') {
+    ConfigHandler::handle();
+}
 
 if ($path === '/v1/activate') {
     ActivateHandler::handle();

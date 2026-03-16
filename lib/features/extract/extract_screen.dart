@@ -150,10 +150,10 @@ class _FindingCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     finding.bodyRegion.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
                         letterSpacing: 0.8),
                   ),
                 ),
@@ -162,8 +162,9 @@ class _FindingCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(finding.text,
-                style: const TextStyle(
-                    fontSize: 15, color: AppTheme.textPrimary)),
+                style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurface)),
             if (isLow) ...[
               const SizedBox(height: 8),
               const Row(

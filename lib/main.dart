@@ -15,7 +15,7 @@ class Resolara extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Resolara',
-      theme: AppTheme.light,
+      theme: AppTheme.dark,
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
     );

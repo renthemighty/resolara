@@ -3,34 +3,42 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color primary = Color(0xFF1A3A5C);
-  static const Color primaryLight = Color(0xFF2A5480);
-  static const Color accent = Color(0xFF4A90D9);
-  static const Color background = Color(0xFFF5F7FA);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color error = Color(0xFFD32F2F);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF6B7280);
+  // Resolara brand palette
+  static const Color primary = Color(0xFF0E3A29);        // Deep Emerald
+  static const Color background = Color(0xFF0A1F1C);     // Deep Forest Teal
+  static const Color secondary = Color(0xFF73978C);      // Muted Sage
+  static const Color textPrimary = Color(0xFFD4D1C7);    // Warm Stone
+  static const Color accent = Color(0xFFB7A46B);         // Antique Gold
 
-  static ThemeData get light => ThemeData(
+  // Derived / utility
+  static const Color surface = Color(0xFF122B21);        // slightly lighter than background
+  static const Color error = Color(0xFFCF6679);          // warm error, fits dark palette
+  static const Color textSecondary = Color(0xFF73978C);  // Muted Sage
+
+  static ThemeData get dark => ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
-          brightness: Brightness.light,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.dark(
+          primary: primary,
+          secondary: accent,
           surface: surface,
           error: error,
+          onPrimary: textPrimary,
+          onSecondary: background,
+          onSurface: textPrimary,
+          onError: textPrimary,
         ),
         scaffoldBackgroundColor: background,
         appBarTheme: const AppBarTheme(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
+          foregroundColor: textPrimary,
           elevation: 0,
           centerTitle: true,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
+            backgroundColor: accent,
+            foregroundColor: background,
             minimumSize: const Size(double.infinity, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -38,15 +46,33 @@ class AppTheme {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          filled: true,
+          fillColor: surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: secondary),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: secondary),
+          ),
+          labelStyle: const TextStyle(color: textSecondary),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         cardTheme: CardThemeData(
-          elevation: 2,
+          color: surface,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: secondary, width: 0.5),
           ),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: textPrimary),
+          bodyMedium: TextStyle(color: textPrimary),
+          bodySmall: TextStyle(color: textSecondary),
+          titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+          titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w500),
         ),
       );
 }

@@ -51,9 +51,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
       }
     } on GenerationServiceException catch (e) {
       if (mounted) setState(() => _state = _Failed(e.message));
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => const _Failed('An unexpected error occurred.'));
+        setState(() => _state = _Failed('An unexpected error occurred: $e'));
       }
     }
   }

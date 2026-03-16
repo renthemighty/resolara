@@ -59,9 +59,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
       await tmpFile.writeAsBytes(response.data!);
 
       if (mounted) setState(() => _state = _Ready(tmpFile));
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => const _Failed('Failed to load visualization.'));
+        setState(() => _state = _Failed('Failed to load visualization: $e'));
       }
     }
   }

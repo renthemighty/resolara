@@ -19,17 +19,16 @@ class GenerationJob {
 
   factory GenerationJob.fromJson(Map<String, dynamic> json) {
     // Rewrite the image URL to use the app's current base URL so it works
-    // through SSH tunnels or after server migrations
+    // through SSH tunnels or after server migrations.
+    // Strip any path prefix before /v1/images/ (e.g. /api) so the URL
+    // matches whatever the PHP server actually serves.
     String? imageUrl = json['image_url'] as String?;
     if (imageUrl != null) {
-      final uri = Uri.tryParse(imageUrl);
-      final base = Uri.tryParse(AppConfig.apiBaseUrl);
-      if (uri != null && base != null) {
-        imageUrl = uri.replace(
-          scheme: base.scheme,
-          host: base.host,
-          port: base.hasPort ? base.port : null,
-        ).toString();
+      const marker = '/v1/images/';
+      final markerIdx = imageUrl.indexOf(marker);
+      if (markerIdx != -1) {
+        final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+        imageUrl = base + imageUrl.substring(markerIdx);
       }
     }
     return GenerationJob(

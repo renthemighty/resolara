@@ -182,30 +182,112 @@ class _FailedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-        const SizedBox(height: 24),
-        const Text('Generation failed',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Text(message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppTheme.textSecondary)),
-        const SizedBox(height: 32),
-        ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: onCancel,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.error.withAlpha(15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.error.withAlpha(60)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
+                const SizedBox(height: 16),
+                const Text(
+                  'Generation failed',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'The visualization could not be created. This is usually temporary.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+              ],
+            ),
           ),
-          child: const Text('Go Back'),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.surface.withAlpha(80),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.sage.withAlpha(60)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What to do',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                ),
+                SizedBox(height: 10),
+                _Tip(icon: Icons.refresh, text: 'Tap Try Again — most failures resolve on the first retry.'),
+                SizedBox(height: 8),
+                _Tip(icon: Icons.wifi_outlined, text: 'Check your internet connection if retries keep failing.'),
+                SizedBox(height: 8),
+                _Tip(icon: Icons.arrow_back_outlined, text: 'Go Back to edit the findings and try with fewer regions.'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.surface.withAlpha(40),
+            ),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Try Again'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Go Back'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Tip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Tip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: AppTheme.accent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          ),
         ),
       ],
     );

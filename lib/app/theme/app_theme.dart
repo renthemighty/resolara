@@ -15,9 +15,12 @@ class AppTheme {
   static const Color error = Color(0xFFCF6679);          // warm error, fits dark palette
   static const Color textSecondary = Color(0xFF73978C);  // Muted Sage
 
+  static const String fontFamily = 'Satoshi';
+
   static ThemeData get dark => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
+        fontFamily: fontFamily,
         colorScheme: ColorScheme.dark(
           primary: primary,
           secondary: accent,

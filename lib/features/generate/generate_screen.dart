@@ -118,7 +118,7 @@ class _SubmittingView extends StatelessWidget {
       children: [
         Icon(Icons.send_outlined, size: 64, color: AppTheme.accent),
         SizedBox(height: 24),
-        Text('Sending findings…',
+        Text('Creating structure…',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         SizedBox(height: 24),

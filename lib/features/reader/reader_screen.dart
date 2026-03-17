@@ -213,16 +213,16 @@ class _SubmittingView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.shield_outlined, size: 64, color: AppTheme.primary),
+        Icon(Icons.biotech_outlined, size: 64, color: AppTheme.primary),
         SizedBox(height: 24),
         Text(
-          'Sending report text…',
+          'Extracting findings…',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         SizedBox(height: 8),
         Text(
-          'Identifying information has been removed. Only report text is transmitted.',
+          'Identifying clinically relevant information.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary),
         ),
@@ -249,16 +249,16 @@ class _PollingView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.biotech_outlined, size: 64, color: AppTheme.primary),
+        Icon(Icons.shield_outlined, size: 64, color: AppTheme.primary),
         SizedBox(height: 24),
         Text(
-          'Extracting findings…',
+          'Sending report text…',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         SizedBox(height: 8),
         Text(
-          'Identifying clinically relevant information.',
+          'Identifying information has been removed. Only report text is transmitted.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary),
         ),

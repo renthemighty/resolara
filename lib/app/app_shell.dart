@@ -27,7 +27,7 @@ class AppShell extends StatelessWidget {
           return TextStyle(
             fontSize: 12,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? AppTheme.gold : AppTheme.sage,
+            color: selected ? AppTheme.gold : AppTheme.warmStone,
             fontFamily: AppTheme.fontFamily,
           );
         }),
@@ -42,9 +42,21 @@ class AppShell extends StatelessWidget {
           }
         },
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.camera_alt_outlined), label: 'Capture'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), label: 'History'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          NavigationDestination(
+            icon: Icon(Icons.camera_alt_outlined),
+            selectedIcon: Icon(Icons.camera_alt),
+            label: 'Capture',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
       ),
     );

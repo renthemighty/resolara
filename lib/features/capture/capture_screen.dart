@@ -108,7 +108,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(title: const Text('New Image')),
+          appBar: AppBar(title: const Text('Resolara')),
           body: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -167,13 +167,6 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       _processing ? null : () => _handleSource(CaptureSource.photos),
                   icon: const Icon(Icons.photo_library_outlined),
                   label: const Text('Choose from Photos'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.gold,
-                    side: const BorderSide(color: AppTheme.gold),
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -181,13 +174,6 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       _processing ? null : () => _handleSource(CaptureSource.import),
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import from Files'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.gold,
-                    side: const BorderSide(color: AppTheme.gold),
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
                 ),
                 const SizedBox(height: 32),
               ],

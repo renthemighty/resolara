@@ -392,13 +392,6 @@ class _ActionBar extends StatelessWidget {
             onPressed: onRegenerate,
             icon: const Icon(Icons.refresh),
             label: const Text('Regenerate'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.gold,
-              side: const BorderSide(color: AppTheme.gold),
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
           ),
         ],
       ),

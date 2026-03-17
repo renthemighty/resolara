@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 import '../config/app_config.dart';
 import '../models/ocr_job.dart';
+import '../services/device_info_service.dart';
 
 class OcrServiceException implements Exception {
   final String message;
@@ -30,6 +31,7 @@ class OcrService {
         'page_count': pageCount,
         'client_timestamp': DateTime.now().toIso8601String(),
         'app_version': AppConfig.appVersion,
+        'device_meta': DeviceInfoService.collect(),
       },
     );
 

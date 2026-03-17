@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../config/app_config.dart';
 import '../models/extraction_result.dart';
 import '../models/generation_job.dart';
+import '../services/device_info_service.dart';
 
 class GenerationServiceException implements Exception {
   final String message;
@@ -26,6 +27,7 @@ class GenerationService {
                 'finding': f.text,
               })
           .toList(),
+      'device_meta': DeviceInfoService.collect(),
     };
 
     final response = await _dio.post('/v1/visualizations', data: payload);

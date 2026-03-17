@@ -36,6 +36,12 @@ dependencies:
   # Image processing (EXIF/metadata stripping)
   image: ^4.5.4
 
+  # On-device OCR
+  google_mlkit_text_recognition: ^0.13.1
+
+  # PDF rendering to images (on-device)
+  pdfx: ^2.8.0
+
   # File encryption (AES-256 for saved visualizations)
   encrypt: ^5.0.3
   pointycastle: ^3.9.1

@@ -12,4 +12,6 @@ class CapturedReport {
     required this.capturedAt,
     required this.source,
   });
+
+  bool get isPdf => file.path.toLowerCase().endsWith('.pdf');
 }

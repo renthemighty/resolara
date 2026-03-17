@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 import '../config/app_config.dart';
@@ -14,28 +13,28 @@ class OcrServiceException implements Exception {
 class OcrService {
   final _dio = ApiClient.instance.dio;
 
-  /// Uploads the image and returns a job ID.
-  Future<String> submitJob(
-    File imageFile, {
-    void Function(double progress)? onProgress,
+  /// Submits cleaned report text to the server and returns a job ID.
+  /// Raw images and PDFs are never uploaded — OCR and redaction run on-device.
+  Future<String> submitJob({
+    required String cleanedReportText,
+    required String redactionSummary,
+    required String documentType,
+    required int pageCount,
   }) async {
-    final formData = FormData.fromMap({
-      'report': await MultipartFile.fromFile(
-        imageFile.path,
-        filename: 'report.jpg',
-      ),
-    });
-
     final response = await _dio.post(
       '/v1/jobs',
-      data: formData,
-      onSendProgress: (sent, total) {
-        if (total > 0) onProgress?.call(sent / total);
+      data: {
+        'cleaned_report_text': cleanedReportText,
+        'redaction_summary': redactionSummary,
+        'document_type': documentType,
+        'page_count': pageCount,
+        'client_timestamp': DateTime.now().toIso8601String(),
+        'app_version': AppConfig.appVersion,
       },
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw const OcrServiceException('Upload failed. Please try again.');
+      throw const OcrServiceException('Submission failed. Please try again.');
     }
 
     final jobId = response.data['job_id'] as String?;
@@ -46,7 +45,6 @@ class OcrService {
   }
 
   /// Polls the job until complete, failed, or [maxAttempts] is reached.
-  /// Yields each [OcrJob] status update.
   Stream<OcrJob> pollJob(String jobId) async* {
     for (int attempt = 0; attempt < AppConfig.jobPollMaxAttempts; attempt++) {
       await Future.delayed(AppConfig.jobPollInterval);
@@ -55,7 +53,7 @@ class OcrService {
       try {
         response = await _dio.get('/v1/jobs/$jobId');
       } on DioException {
-        continue; // transient network error — keep polling
+        continue;
       }
 
       final job = OcrJob.fromJson(response.data as Map<String, dynamic>);

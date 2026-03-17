@@ -51,7 +51,7 @@ class AppConfig {
 class ConfigService {
   static Future<AppConfig> fetch() async {
     try {
-      final dio = ApiClient.instance;
+      final dio = ApiClient.instance.dio;
       final response = await dio.get('/v1/config');
       return AppConfig.fromJson(response.data as Map<String, dynamic>);
     } catch (_) {

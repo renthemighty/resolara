@@ -103,6 +103,27 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(height: 24),
+          // ── History ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'Visualizations',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          ListTile(
+            title: const Text('Saved Visualizations'),
+            subtitle: const Text('View your approved visualization history'),
+            leading: const Icon(Icons.history_outlined, color: AppTheme.accent),
+            trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+            onTap: () => context.push('/history'),
+          ),
+          const Divider(height: 24),
           // ── Account ───────────────────────────────────────────────────────
           ListTile(
             title: const Text('Sign Out'),

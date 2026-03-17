@@ -9,8 +9,7 @@ class AppShell extends StatelessWidget {
 
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/history')) return 1;
-    if (location.startsWith('/settings')) return 2;
+    if (location.startsWith('/settings')) return 1;
     return 0;
   }
 
@@ -36,8 +35,6 @@ class AppShell extends StatelessWidget {
             case 0:
               context.go('/home');
             case 1:
-              context.go('/history');
-            case 2:
               context.go('/settings');
           }
         },
@@ -46,11 +43,6 @@ class AppShell extends StatelessWidget {
             icon: Icon(Icons.camera_alt_outlined),
             selectedIcon: Icon(Icons.camera_alt),
             label: 'Capture',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart' show Share, XFile;
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/extraction_result.dart';
@@ -118,6 +119,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
+  Future<void> _share(Uint8List imageBytes) async {
+    final tmp = await getTemporaryDirectory();
+    final file = File(p.join(tmp.path, 'resolara_visualization.png'));
+    await file.writeAsBytes(imageBytes);
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'image/png')],
+      subject: 'Resolara Visualization',
+    );
+  }
+
   void _regenerate() {
     Navigator.of(context).pop();
   }
@@ -145,6 +156,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               findings: widget.findings,
               onApprove: () => _approve(bytes),
               onRegenerate: _regenerate,
+              onShare: () => _share(bytes),
             ),
         },
       ),
@@ -184,6 +196,7 @@ class _ReadyView extends StatelessWidget {
   final List<Finding> findings;
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
+  final VoidCallback onShare;
 
   const _ReadyView({
     required this.imageBytes,
@@ -191,6 +204,7 @@ class _ReadyView extends StatelessWidget {
     required this.findings,
     required this.onApprove,
     required this.onRegenerate,
+    required this.onShare,
   });
 
   @override
@@ -220,7 +234,7 @@ class _ReadyView extends StatelessWidget {
         if (findings.isNotEmpty)
           _FindingsLegend(findings: findings),
         _MetaBar(jobId: jobId),
-        _ActionBar(onApprove: onApprove, onRegenerate: onRegenerate),
+        _ActionBar(onApprove: onApprove, onRegenerate: onRegenerate, onShare: onShare),
       ],
     );
   }
@@ -368,8 +382,13 @@ class _MetaBar extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
+  final VoidCallback onShare;
 
-  const _ActionBar({required this.onApprove, required this.onRegenerate});
+  const _ActionBar({
+    required this.onApprove,
+    required this.onRegenerate,
+    required this.onShare,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -388,10 +407,24 @@ class _ActionBar extends StatelessWidget {
             label: const Text('Approve & Save'),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onRegenerate,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Regenerate'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onRegenerate,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Regenerate'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onShare,
+                  icon: const Icon(Icons.share_outlined),
+                  label: const Text('Share'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

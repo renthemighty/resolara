@@ -1,7 +1,7 @@
 name: resolara
 description: Resolara — mobile-first clinical visualization for licensed healthcare professionals.
 publish_to: 'none'
-version: 1.0.7+8
+version: 1.0.8+9
 
 environment:
   sdk: ^3.10.8
@@ -28,6 +28,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.28
   path_provider: ^2.1.5
   path: ^1.9.1
+  share_plus: ^10.1.4
 
   # Camera / image input
   image_picker: ^1.1.2

@@ -3,857 +3,412 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Resolara — clinical anatomical visualization for licensed healthcare professionals. Turn medical reports into practitioner-reviewed 2D anatomical illustrations." />
-  <title>Resolara — Clinical Visualization for Practitioners</title>
+  <meta name="description" content="Resolara — turn any medical report into a clear anatomical illustration. Clinical visualization for healthcare professionals." />
+  <title>Resolara — Clinical Visualization</title>
 
   <link rel="preload" href="assets/font/Satoshi-Regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/font/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/font/Satoshi-Light.woff2" as="font" type="font/woff2" crossorigin />
 
   <style>
-    /* ============================================================
-       FONTS
-    ============================================================ */
-    @font-face {
-      font-family: 'Satoshi';
-      src: url('assets/font/Satoshi-Light.woff2') format('woff2'),
-           url('assets/font/Satoshi-Light.woff') format('woff');
-      font-weight: 300; font-style: normal; font-display: swap;
-    }
-    @font-face {
-      font-family: 'Satoshi';
-      src: url('assets/font/Satoshi-Regular.woff2') format('woff2'),
-           url('assets/font/Satoshi-Regular.woff') format('woff');
-      font-weight: 400; font-style: normal; font-display: swap;
-    }
-    @font-face {
-      font-family: 'Satoshi';
-      src: url('assets/font/Satoshi-Medium.woff2') format('woff2'),
-           url('assets/font/Satoshi-Medium.woff') format('woff');
-      font-weight: 500; font-style: normal; font-display: swap;
-    }
-    @font-face {
-      font-family: 'Satoshi';
-      src: url('assets/font/Satoshi-Bold.woff2') format('woff2'),
-           url('assets/font/Satoshi-Bold.woff') format('woff');
-      font-weight: 700; font-style: normal; font-display: swap;
-    }
-    @font-face {
-      font-family: 'Satoshi';
-      src: url('assets/font/Satoshi-Black.woff2') format('woff2'),
-           url('assets/font/Satoshi-Black.woff') format('woff');
-      font-weight: 900; font-style: normal; font-display: swap;
-    }
+    /* ============================================================  FONTS  */
+    @font-face { font-family:'Satoshi'; src:url('assets/font/Satoshi-Light.woff2') format('woff2'),url('assets/font/Satoshi-Light.woff') format('woff'); font-weight:300; font-display:swap; }
+    @font-face { font-family:'Satoshi'; src:url('assets/font/Satoshi-Regular.woff2') format('woff2'),url('assets/font/Satoshi-Regular.woff') format('woff'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Satoshi'; src:url('assets/font/Satoshi-Medium.woff2') format('woff2'),url('assets/font/Satoshi-Medium.woff') format('woff'); font-weight:500; font-display:swap; }
+    @font-face { font-family:'Satoshi'; src:url('assets/font/Satoshi-Bold.woff2') format('woff2'),url('assets/font/Satoshi-Bold.woff') format('woff'); font-weight:700; font-display:swap; }
+    @font-face { font-family:'Satoshi'; src:url('assets/font/Satoshi-Black.woff2') format('woff2'),url('assets/font/Satoshi-Black.woff') format('woff'); font-weight:900; font-display:swap; }
 
-    /* ============================================================
-       TOKENS — light mode (Warm Stone bg, deep green text)
-    ============================================================ */
+    /* ============================================================  TOKENS  */
     :root {
-      --bg:            #D4D1C7;
-      --bg-raised:     #DDD9D0;
-      --bg-sunken:     #C8C5BB;
-      --bg-card:       #CCCAB f;
-      --surface:       rgba(255,255,255,0.35);
-      --surface-hover: rgba(255,255,255,0.55);
-
-      --text:          #0A1F1C;
-      --text-2:        #1E3D37;
-      --text-muted:    #4A6B63;
-      --text-faint:    #73978C;
-
-      --primary:       #0E3A29;
-      --primary-hover: #0A2E1F;
-
-      --gold:          #8A7440;
-      --gold-light:    #B7A46B;
-      --gold-bg:       rgba(183, 164, 107, 0.12);
-      --gold-border:   rgba(138, 116, 64, 0.3);
-
-      --border:        rgba(10, 31, 28, 0.12);
-      --border-strong: rgba(10, 31, 28, 0.22);
-
-      --font:          'Satoshi', system-ui, -apple-system, sans-serif;
-      --max-w:         1120px;
-      --gutter:        clamp(1.5rem, 5vw, 3rem);
-      --radius-sm:     6px;
-      --radius-md:     12px;
-      --radius-lg:     20px;
-      --radius-xl:     32px;
-      --ease:          200ms ease;
+      --white:       #FFFFFF;
+      --bg:          #F6F4EF;
+      --bg-alt:      #FFFFFF;
+      --bg-dark:     #0A1F1C;
+      --primary:     #0E3A29;
+      --primary-h:   #0A2E1F;
+      --gold:        #8A7440;
+      --gold-lt:     #B7A46B;
+      --gold-bg:     rgba(183,164,107,0.1);
+      --gold-border: rgba(138,116,64,0.22);
+      --text:        #0A1F1C;
+      --text-2:      #2E4E46;
+      --text-muted:  #5A7870;
+      --text-faint:  #8AA49E;
+      --border:      rgba(10,31,28,0.1);
+      --border-md:   rgba(10,31,28,0.16);
+      --shadow-sm:   0 1px 3px rgba(10,31,28,0.08), 0 4px 12px rgba(10,31,28,0.05);
+      --shadow-md:   0 4px 16px rgba(10,31,28,0.1), 0 12px 40px rgba(10,31,28,0.07);
+      --shadow-lg:   0 16px 48px rgba(10,31,28,0.12), 0 32px 80px rgba(10,31,28,0.08);
+      --font:        'Satoshi', system-ui, -apple-system, sans-serif;
+      --max-w:       1180px;
+      --gutter:      clamp(1.5rem, 4vw, 3rem);
+      --r-sm:        8px;
+      --r-md:        14px;
+      --r-lg:        22px;
+      --r-xl:        36px;
+      --r-pill:      100px;
+      --ease:        220ms ease;
+      --section-py:  clamp(5rem, 9vw, 8rem);
     }
 
-    /* ============================================================
-       RESET & BASE
-    ============================================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-    }
+    /* ============================================================  RESET  */
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html { scroll-behavior:smooth; }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+    body { font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.65; }
+    img { display:block; max-width:100%; }
+    a { color:inherit; text-decoration:none; }
+    .skip-link { position:absolute; top:-999px; left:1rem; background:var(--primary); color:var(--white); padding:.5rem 1rem; border-radius:var(--r-sm); font-weight:700; z-index:9999; }
+    .skip-link:focus { top:1rem; }
 
-    body {
-      font-family: var(--font);
-      background-color: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      line-height: 1.65;
-    }
+    /* ============================================================  LAYOUT  */
+    .container { max-width:var(--max-w); margin-inline:auto; padding-inline:var(--gutter); }
+    .section { padding-block:var(--section-py); }
+    .bg-white { background:var(--bg-alt); }
+    .bg-tinted { background:var(--bg); }
+    .bg-dark { background:var(--primary); }
+    .bg-sage { background:#6B8C83; }
 
-    img { display: block; max-width: 100%; }
-    a { color: inherit; text-decoration: none; }
-
-    .skip-link {
-      position: absolute; top: -999px; left: 1rem;
-      background: var(--primary); color: var(--bg);
-      padding: 0.5rem 1rem; border-radius: var(--radius-sm);
-      font-weight: 700; z-index: 9999;
-    }
-    .skip-link:focus { top: 1rem; }
-
-    /* ============================================================
-       LAYOUT
-    ============================================================ */
-    .container {
-      max-width: var(--max-w);
-      margin-inline: auto;
-      padding-inline: var(--gutter);
-    }
-    .section { padding-block: clamp(5rem, 9vw, 8rem); }
-    .divider { width: 100%; height: 1px; background: var(--border); }
-
-    /* ============================================================
-       TYPOGRAPHY
-    ============================================================ */
+    /* ============================================================  TYPOGRAPHY  */
     .eyebrow {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 1rem;
+      display:inline-flex; align-items:center; gap:.5rem;
+      font-size:.72rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+      color:var(--gold); margin-bottom:1.125rem;
     }
+    .eyebrow::before { content:''; width:20px; height:1.5px; background:var(--gold-lt); flex-shrink:0; }
 
-    h1, h2, h3, h4 {
-      color: var(--text);
-      line-height: 1.12;
-      letter-spacing: -0.025em;
-    }
-    h1 { font-size: clamp(2.75rem, 5.5vw, 4.5rem); font-weight: 700; }
-    h2 { font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 700; }
-    h3 { font-size: 1.0625rem; font-weight: 600; }
+    h1,h2,h3,h4 { color:var(--text); line-height:1.1; letter-spacing:-.025em; }
+    h1 { font-size:clamp(2.75rem,5.5vw,4.25rem); font-weight:700; }
+    h2 { font-size:clamp(2rem,3.5vw,2.875rem); font-weight:700; }
+    h3 { font-size:1.0625rem; font-weight:600; }
+    p  { color:var(--text-muted); font-size:clamp(.975rem,1.4vw,1.0625rem); line-height:1.75; }
 
-    p { color: var(--text-2); font-size: clamp(0.975rem, 1.5vw, 1.0625rem); line-height: 1.72; }
-    .text-center { text-align: center; }
-    .text-muted { color: var(--text-muted); }
+    .text-center { text-align:center; }
+    .section-header { max-width:640px; margin-inline:auto; margin-bottom:clamp(3rem,5vw,4.5rem); }
+    .section-header h2 { margin-bottom:.875rem; }
+    .section-header.left { margin-inline:0; }
 
-    .section-header { max-width: 620px; margin-inline: auto; margin-bottom: clamp(3rem, 5vw, 4.5rem); }
-    .section-header h2 { margin-bottom: 0.875rem; }
-
-    /* ============================================================
-       BUTTONS
-    ============================================================ */
+    /* ============================================================  BUTTONS  */
     .btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      gap: 0.5rem; padding: 0.875rem 2rem;
-      font-family: var(--font); font-size: 0.9375rem; font-weight: 600;
-      border-radius: var(--radius-md); border: none; cursor: pointer;
-      transition: background var(--ease), transform var(--ease), box-shadow var(--ease);
-      min-height: 48px; text-decoration: none;
+      display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+      padding:.875rem 2rem; font-family:var(--font); font-size:.9375rem; font-weight:600;
+      border-radius:var(--r-pill); border:none; cursor:pointer;
+      transition:background var(--ease), transform var(--ease), box-shadow var(--ease);
+      min-height:50px; text-decoration:none; white-space:nowrap;
     }
-    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+    .btn:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+    .btn-primary { background:var(--primary); color:var(--white); }
+    .btn-primary:hover { background:var(--primary-h); transform:translateY(-1px); box-shadow:0 8px 24px rgba(10,31,28,.22); }
+    .btn-outline { background:transparent; color:var(--text); border:1.5px solid var(--border-md); }
+    .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+    .btn-sm { padding:.625rem 1.5rem; font-size:.875rem; min-height:42px; }
 
-    .btn-primary {
-      background: var(--primary); color: var(--bg-raised);
-    }
-    .btn-primary:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 8px 28px rgba(10, 31, 28, 0.25);
-    }
-
-    .btn-outline {
-      background: transparent; color: var(--text);
-      border: 1.5px solid var(--border-strong);
-    }
-    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-
-    /* ============================================================
-       STORE BADGES
-    ============================================================ */
-    .store-badges {
-      display: flex; align-items: center; justify-content: center;
-      gap: 0.75rem; flex-wrap: wrap;
-    }
+    /* ============================================================  STORE BADGES  */
+    .store-badges { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
     .store-badge {
-      display: inline-flex; align-items: center; gap: 0.625rem;
-      padding: 0.5rem 1.125rem 0.5rem 0.875rem;
-      background: var(--primary);
-      border: 1px solid rgba(10, 31, 28, 0.5);
-      border-radius: 10px;
-      transition: background var(--ease), transform var(--ease), box-shadow var(--ease);
-      width: fit-content;
-      height: 44px;
+      display:inline-flex; align-items:center; gap:.65rem;
+      padding:.525rem 1.25rem .525rem .9rem;
+      background:var(--primary); border:1.5px solid rgba(10,31,28,.5);
+      border-radius:var(--r-sm); height:46px;
+      transition:background var(--ease), transform var(--ease), box-shadow var(--ease);
     }
-    .store-badge:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(10, 31, 28, 0.25);
-    }
-    .store-badge:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-    .store-badge-icon { color: #D4D1C7; flex-shrink: 0; display: flex; align-items: center; }
-    .store-badge-text { display: flex; flex-direction: column; gap: 0; }
-    .store-badge-pre {
-      font-size: 0.6rem; font-weight: 400; letter-spacing: 0.04em;
-      color: rgba(212, 209, 199, 0.65); line-height: 1.2;
-    }
-    .store-badge-name { font-size: 0.9rem; font-weight: 600; color: #D4D1C7; line-height: 1.25; letter-spacing: -0.01em; }
+    .store-badge:hover { background:var(--primary-h); transform:translateY(-1px); box-shadow:0 6px 20px rgba(10,31,28,.22); }
+    .store-badge:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+    .store-badge-icon { color:#D4D1C7; flex-shrink:0; display:flex; align-items:center; }
+    .store-badge-text { display:flex; flex-direction:column; }
+    .store-badge-pre { font-size:.6rem; font-weight:400; letter-spacing:.04em; color:rgba(212,209,199,.65); line-height:1.2; }
+    .store-badge-name { font-size:.875rem; font-weight:600; color:#D4D1C7; line-height:1.2; letter-spacing:-.01em; }
 
-    /* ============================================================
-       NAV
-    ============================================================ */
+    /* ============================================================  NAV  */
     .site-nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      padding-block: 1.25rem;
-      background: rgba(212, 209, 199, 0.88);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      padding-block:1.125rem;
+      background:rgba(246,244,239,0);
+      border-bottom:1px solid transparent;
+      transition:background .3s ease, border-color .3s ease, box-shadow .3s ease;
     }
-    .nav-inner {
-      display: flex; align-items: center; justify-content: space-between;
-      max-width: var(--max-w); margin-inline: auto; padding-inline: var(--gutter);
+    .site-nav.scrolled {
+      background:rgba(246,244,239,0.96);
+      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      border-bottom-color:var(--border);
+      box-shadow:0 1px 20px rgba(10,31,28,.06);
     }
-    .nav-logo { display: flex; align-items: center; gap: 0.75rem; }
-    .nav-logo img { height: 45px; width: auto; }
-    .nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
-    .nav-links a {
-      font-size: 0.875rem; font-weight: 500; color: var(--text-muted);
-      transition: color var(--ease);
-    }
-    .nav-links a:hover { color: var(--text); }
-    .nav-links a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 3px; }
-    .nav-cta { padding: 0.6rem 1.25rem; font-size: 0.875rem; min-height: 42px; }
+    .nav-inner { display:flex; align-items:center; justify-content:space-between; max-width:var(--max-w); margin-inline:auto; padding-inline:var(--gutter); }
+    .nav-logo { height:42px; max-width:200px; width:auto; }
+    .nav-links { display:flex; align-items:center; gap:2.25rem; list-style:none; }
+    .nav-links a { font-size:.875rem; font-weight:500; color:var(--text-muted); transition:color var(--ease); }
+    .nav-links a:hover { color:var(--text); }
+    @media (max-width:800px) { .nav-links { display:none; } }
 
-    @media (max-width: 768px) { .nav-links { display: none; } }
-
-    /* ============================================================
-       HERO
-    ============================================================ */
+    /* ============================================================  HERO  */
     .hero {
-      padding-top: clamp(8rem, 13vw, 11rem);
-      padding-bottom: clamp(4rem, 7vw, 6rem);
-      position: relative;
-      overflow: hidden;
+      min-height:100vh; display:flex; align-items:center;
+      position:relative; overflow:hidden;
+      background:
+        url('assets/images/hero-bg.png') center 30% / cover no-repeat;
     }
-    /* Dot grid background */
-    .hero::before {
-      content: '';
-      position: absolute; inset: 0;
-      background-image: radial-gradient(circle, rgba(10,31,28,0.065) 1px, transparent 1px);
-      background-size: 26px 26px;
-      pointer-events: none;
+    .hero-overlay {
+      position:absolute; inset:0;
+      background:linear-gradient(
+        105deg,
+        rgba(6,18,16,0.82) 0%,
+        rgba(8,24,20,0.72) 45%,
+        rgba(10,31,28,0.45) 100%
+      );
+      z-index:1;
     }
-    /* Top radial glow */
-    .hero::after {
-      content: '';
-      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-      width: 1000px; height: 500px;
-      background: radial-gradient(ellipse at top, rgba(14,58,41,0.09) 0%, transparent 65%);
-      pointer-events: none;
+    .hero-content {
+      position:relative; z-index:2;
+      padding-top:clamp(7rem,13vw,10rem);
+      padding-bottom:clamp(5rem,9vw,8rem);
+      max-width:660px;
     }
-    .hero-inner {
-      position: relative; z-index: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: clamp(3rem, 6vw, 6rem);
-      align-items: center;
+    .hero-kicker {
+      display:inline-flex; align-items:center; gap:.5rem;
+      padding:.35rem .875rem;
+      background:rgba(183,164,107,0.15);
+      border:1px solid rgba(183,164,107,0.35);
+      border-radius:var(--r-pill);
+      font-size:.75rem; font-weight:500; color:#D4C070;
+      letter-spacing:.06em; text-transform:uppercase; margin-bottom:1.75rem;
     }
-    @media (max-width: 900px) {
-      .hero-inner { grid-template-columns: 1fr; text-align: center; }
-      .hero-visual-col { display: none; }
-      .store-badges { justify-content: center; }
-    }
-
-    .hero h1 { margin-bottom: 1.375rem; }
-    .hero h1 em { font-style: normal; color: var(--primary); }
-
+    .hero-kicker-dot { width:6px; height:6px; background:#B7A46B; border-radius:50%; flex-shrink:0; }
+    .hero h1 { color:#F2EFE8; margin-bottom:1.375rem; text-shadow:0 2px 32px rgba(4,12,10,0.5); }
+    .hero h1 em { font-style:normal; color:#C8AE72; }
     .hero-desc {
-      max-width: 480px; margin-bottom: 2.5rem;
-      font-size: clamp(1rem, 1.5vw, 1.125rem);
-      color: var(--text-muted); line-height: 1.72;
+      max-width:520px; margin-bottom:2.5rem;
+      font-size:clamp(1rem,1.5vw,1.125rem);
+      color:rgba(242,239,232,0.72); line-height:1.8;
     }
-    .hero-sub {
-      margin-top: 1.5rem;
-      font-size: 0.78rem; color: var(--text-faint); letter-spacing: 0.02em;
+    .hero-sub { margin-top:1.375rem; font-size:.775rem; color:rgba(242,239,232,0.4); }
+    .hero .store-badge { border-color:rgba(212,209,199,0.35); }
+    .hero-scroll {
+      position:absolute; bottom:2.5rem; left:50%; transform:translateX(-50%);
+      z-index:2; display:flex; flex-direction:column; align-items:center; gap:.5rem;
+      color:rgba(242,239,232,0.4); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase;
     }
+    .hero-scroll-line {
+      width:1px; height:40px;
+      background:linear-gradient(to bottom, rgba(242,239,232,0.4), transparent);
+      animation:scrollpulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollpulse {
+      0%,100% { opacity:.4; transform:scaleY(1); }
+      50% { opacity:.9; transform:scaleY(1.15); }
+    }
+    @media (max-width:600px) { .hero-scroll { display:none; } }
 
-    /* Hero visual column */
-    .hero-visual-col {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2.5rem 1.5rem;
-      min-height: 540px;
-    }
-    /* Glow halo behind phone */
-    .hero-glow {
-      position: absolute;
-      width: 340px; height: 340px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(14,58,41,0.13) 0%, transparent 70%);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-    /* Decorative rings */
-    .hero-ring {
-      position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(14,58,41,0.1);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-    .hero-ring-1 { width: 290px; height: 290px; }
-    .hero-ring-2 { width: 380px; height: 380px; border-color: rgba(14,58,41,0.055); }
-    .hero-ring-3 { width: 480px; height: 480px; border-color: rgba(14,58,41,0.03); }
+    /* ============================================================  DIVIDER  */
+    .divider { width:100%; height:1px; background:var(--border); }
 
-    /* Phone frame */
-    .hero-phone {
-      width: 215px;
-      border: 2.5px solid rgba(10,31,28,0.82);
-      border-radius: 44px;
-      overflow: hidden;
-      box-shadow:
-        0 48px 96px rgba(10,31,28,0.2),
-        0 16px 32px rgba(10,31,28,0.1),
-        0 0 0 6px rgba(10,31,28,0.04);
-      position: relative; z-index: 2;
-      background: #0A1F1C;
-    }
-    .hero-phone img { width: 100%; display: block; }
+    /* ============================================================  STATS BAND  */
+    .stats-band { background:var(--primary); padding-block:clamp(3.5rem,6vw,5rem); }
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(212,209,199,.1); border-radius:var(--r-lg); overflow:hidden; }
+    @media (max-width:700px) { .stats-grid { grid-template-columns:repeat(2,1fr); } }
+    .stat-cell { background:rgba(14,58,41,.5); padding:2rem 1.5rem; text-align:center; transition:background var(--ease); }
+    .stat-cell:hover { background:rgba(14,58,41,.75); }
+    .stat-num { font-size:clamp(2rem,4vw,2.875rem); font-weight:700; color:#D4D1C7; letter-spacing:-.04em; line-height:1; margin-bottom:.5rem; }
+    .stat-num span { color:#B7A46B; }
+    .stat-desc { font-size:.82rem; color:rgba(212,209,199,.62); line-height:1.5; max-width:180px; margin-inline:auto; }
 
-    /* Floating finding cards */
-    .hero-float {
-      position: absolute;
-      background: var(--bg);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      padding: 0.875rem 1rem;
-      box-shadow: 0 8px 28px rgba(10,31,28,0.1), 0 2px 6px rgba(10,31,28,0.06);
-      z-index: 4;
-      backdrop-filter: blur(8px);
-    }
-    .hero-float-1 {
-      left: -8px; top: 16%;
-      transform: rotate(-2.5deg);
-      max-width: 168px;
-    }
-    .hero-float-2 {
-      right: -8px; bottom: 22%;
-      transform: rotate(2deg);
-      max-width: 160px;
-    }
-    .float-label {
-      font-size: 0.63rem; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--gold); margin-bottom: 0.3rem;
-    }
-    .float-value {
-      font-size: 0.8rem; font-weight: 600; color: var(--text); line-height: 1.35;
-    }
-    .float-sub {
-      font-size: 0.7rem; color: var(--text-faint); margin-top: 0.25rem;
-    }
-    .float-conf {
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      background: rgba(14,58,41,0.09);
-      border: 1px solid rgba(14,58,41,0.14);
-      border-radius: 100px;
-      padding: 0.15rem 0.5rem;
-      font-size: 0.68rem; font-weight: 700; color: var(--primary);
-      margin-top: 0.4rem;
-    }
-    .float-conf-dot {
-      width: 5px; height: 5px;
-      background: var(--primary); border-radius: 50%;
-    }
-    .float-check {
-      display: inline-flex; align-items: center; gap: 0.35rem;
-      font-size: 0.75rem; font-weight: 600; color: var(--primary);
-      margin-top: 0.35rem;
-    }
+    /* ============================================================  PROBLEM SECTION  */
+    .problem-inner { display:grid; grid-template-columns:1fr 1fr; gap:clamp(3.5rem,7vw,8rem); align-items:center; }
+    @media (max-width:800px) { .problem-inner { grid-template-columns:1fr; } }
+    .problem-text h2 { margin-bottom:1.25rem; }
+    .problem-text p { margin-bottom:1.25rem; }
+    .problem-text p:last-of-type { margin-bottom:0; }
 
-    /* ============================================================
-       THE CONVERSATION — impact section
-    ============================================================ */
-    .conversation {
-      background: var(--primary);
-      padding-block: clamp(5rem, 9vw, 8rem);
+    .report-card {
+      background:var(--white); border-radius:var(--r-lg);
+      box-shadow:var(--shadow-md); overflow:hidden;
     }
-    .conversation-inner {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: clamp(3rem, 6vw, 7rem);
-      align-items: start;
+    .report-card-head {
+      background:var(--primary); padding:.875rem 1.375rem;
+      display:flex; align-items:center; gap:.625rem;
     }
-    @media (max-width: 800px) {
-      .conversation-inner { grid-template-columns: 1fr; }
-    }
+    .report-card-head-dot { width:8px; height:8px; border-radius:50%; background:rgba(212,209,199,.3); }
+    .report-card-head span { font-size:.72rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color:rgba(212,209,199,.6); }
+    .report-card-body { padding:1.5rem; }
+    .report-line { font-size:.8rem; font-family:'Courier New', monospace; color:var(--text-muted); line-height:1.95; }
+    .report-line strong { color:var(--text); }
+    .report-line.hl { background:rgba(138,116,64,.08); border-left:2px solid var(--gold-lt); padding:.05rem 0 .05rem .625rem; margin-left:-.625rem; color:var(--text-2); }
+    .report-line.hl strong { color:var(--gold); }
+    .report-card-foot { padding:.875rem 1.375rem; border-top:1px solid var(--border); background:var(--bg); }
+    .report-card-foot p { font-size:.75rem; color:var(--text-faint); font-style:italic; line-height:1.5; margin:0; }
 
-    .conversation-lead {
-      font-size: clamp(1.5rem, 2.75vw, 2.125rem);
-      font-weight: 300;
-      color: #D4D1C7;
-      line-height: 1.45;
-      letter-spacing: -0.02em;
+    .resolara-result {
+      margin-top:1rem; background:var(--white); border-radius:var(--r-md);
+      border:1px solid var(--border); padding:1.25rem 1.375rem;
+      display:flex; align-items:flex-start; gap:1rem;
     }
-    .conversation-lead strong {
-      font-weight: 700;
-      color: #EBE7DC;
+    .resolara-result-icon {
+      width:38px; height:38px; background:rgba(14,58,41,.08); border-radius:var(--r-sm);
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--primary);
     }
+    .resolara-result-label { font-size:.67rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); margin-bottom:.3rem; }
+    .resolara-result-text { font-size:.85rem; color:var(--text-2); line-height:1.55; margin:0; }
 
-    .conversation-body { padding-top: 0.25rem; }
-    .conversation-body p {
-      color: rgba(212, 209, 199, 0.72);
-      font-size: 1.0rem;
-      line-height: 1.78;
-      margin-bottom: 1.5rem;
-    }
-    .conversation-body p:last-child { margin-bottom: 0; }
+    /* ============================================================  SCREENSHOTS  */
+    .screenshots-section { background:var(--bg); }
+    .phones-showcase { display:flex; align-items:flex-end; justify-content:center; gap:1.5rem; margin-top:clamp(3rem,5vw,4.5rem); padding-bottom:1rem; }
+    .phone-wrap { display:flex; flex-direction:column; align-items:center; gap:1.25rem; }
+    .phone-frame { border:2.5px solid rgba(10,31,28,.75); border-radius:40px; overflow:hidden; box-shadow:var(--shadow-md); background:#0A1F1C; width:195px; }
+    .phone-frame.center { width:225px; border-radius:46px; box-shadow:var(--shadow-lg); }
+    .phone-frame img { width:100%; display:block; }
+    .phone-caption { font-size:.75rem; color:var(--text-faint); text-align:center; max-width:155px; line-height:1.45; }
+    .phone-side { opacity:.78; }
+    .phone-left { transform:rotate(-3.5deg) translateY(24px); }
+    .phone-right { transform:rotate(3.5deg) translateY(24px); }
+    @media (max-width:700px) { .phone-side { display:none; } .phone-frame.center { width:250px; } }
 
-    .conversation-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: rgba(212, 209, 199, 0.1);
-      border: 1px solid rgba(212, 209, 199, 0.1);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      margin-top: 2.5rem;
-    }
-    .stat-cell {
-      background: rgba(14, 58, 41, 0.5);
-      padding: 1.75rem 1.5rem;
-    }
-    .stat-cell:hover { background: rgba(14, 58, 41, 0.7); }
-    .stat-number {
-      font-size: 2.25rem; font-weight: 700;
-      color: #B7A46B; letter-spacing: -0.04em; line-height: 1;
-      margin-bottom: 0.4rem;
-    }
-    .stat-label { font-size: 0.82rem; color: rgba(212, 209, 199, 0.6); line-height: 1.45; }
-
-    /* ============================================================
-       PATIENT SECTION
-    ============================================================ */
-    .patient-section { background: var(--bg-raised); }
-
-    .patient-inner {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: clamp(3rem, 6vw, 7rem);
-      align-items: center;
-    }
-    @media (max-width: 800px) { .patient-inner { grid-template-columns: 1fr; } }
-
-    .patient-content h2 { margin-bottom: 1.25rem; }
-    .patient-content p { margin-bottom: 1.25rem; }
-    .patient-content p:last-of-type { margin-bottom: 0; }
-
-    /* Before/After cards replacing the old report mockup */
-    .patient-cards {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .patient-card-before {
-      background: var(--primary);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .patient-card-before-header {
-      padding: 0.875rem 1.5rem 0.5rem;
-    }
-    .patient-card-before-header .eyebrow {
-      color: rgba(183,164,107,0.75);
-      margin-bottom: 0;
-      font-size: 0.67rem;
-    }
-    .patient-card-before-body {
-      padding: 0.75rem 1.5rem 1.5rem;
-    }
-    .patient-card-before-body p {
-      font-size: 0.82rem;
-      font-family: 'Courier New', monospace;
-      color: rgba(212,209,199,0.55);
-      line-height: 1.9;
-    }
-    .patient-card-before-body .highlight-jargon {
-      background: rgba(183,164,107,0.12);
-      border-left: 2px solid rgba(183,164,107,0.5);
-      padding-left: 0.625rem;
-      margin-left: -0.625rem;
-      color: rgba(212,209,199,0.72);
-    }
-    .patient-card-before-body .highlight-jargon strong {
-      color: #B7A46B;
-    }
-
-    .patient-card-after {
-      background: var(--gold-bg);
-      border: 1px solid var(--gold-border);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
-    }
-    .patient-card-after .eyebrow {
-      color: var(--gold);
-      font-size: 0.67rem;
-      margin-bottom: 0.625rem;
-    }
-    .patient-card-after p {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      line-height: 1.62;
-    }
-
-    /* ============================================================
-       FEATURES
-    ============================================================ */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-xl);
-      overflow: hidden;
-      margin-top: clamp(3rem, 5vw, 4rem);
-    }
-    @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
-
+    /* ============================================================  FEATURES  */
+    .features-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem; margin-top:clamp(3rem,5vw,4rem); }
+    @media (max-width:900px) { .features-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:560px) { .features-grid { grid-template-columns:1fr; } }
     .feature-card {
-      background: var(--bg);
-      padding: 2.25rem 2rem;
-      transition: background var(--ease);
+      background:var(--white); border-radius:var(--r-lg);
+      padding:2.25rem 2rem; box-shadow:var(--shadow-sm);
+      border:1px solid var(--border);
+      transition:box-shadow var(--ease), transform var(--ease);
     }
-    .feature-card:hover { background: var(--bg-raised); }
-
+    .feature-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
     .feature-icon {
-      width: 44px; height: 44px;
-      background: var(--gold-bg);
-      border: 1px solid var(--gold-border);
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 1.375rem;
-      color: var(--gold);
+      width:46px; height:46px; background:rgba(14,58,41,.07);
+      border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center;
+      margin-bottom:1.5rem; color:var(--primary);
     }
+    .feature-card h3 { margin-bottom:.5rem; }
+    .feature-card p { font-size:.9rem; line-height:1.68; }
 
-    .feature-card h3 { margin-bottom: 0.5rem; font-size: 1rem; color: var(--text); }
-    .feature-card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; }
+    /* ============================================================  ACCURACY  */
+    .accuracy-section { background:var(--primary); }
+    .accuracy-section .section-header h2 { color:#EBE8DE; }
+    .accuracy-section .section-header p { color:rgba(212,209,199,.65); }
+    .accuracy-section .eyebrow { color:var(--gold-lt); }
+    .accuracy-section .eyebrow::before { background:rgba(183,164,107,.5); }
+    .accuracy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(212,209,199,.08); border-radius:var(--r-xl); overflow:hidden; margin-top:clamp(2.5rem,4vw,3.5rem); }
+    @media (max-width:900px) { .accuracy-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:560px) { .accuracy-grid { grid-template-columns:1fr; } }
+    .accuracy-card { background:rgba(10,31,28,.45); padding:2rem 1.75rem; transition:background var(--ease); }
+    .accuracy-card:hover { background:rgba(10,31,28,.65); }
+    .accuracy-icon { width:40px; height:40px; background:rgba(183,164,107,.12); border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem; color:#B7A46B; }
+    .accuracy-card h3 { font-size:.9375rem; color:#EBE8DE; margin-bottom:.4rem; }
+    .accuracy-card p { font-size:.875rem; color:rgba(212,209,199,.58); line-height:1.65; }
 
-    /* ============================================================
-       USE CASES
-    ============================================================ */
-    .use-cases { background: var(--bg-sunken); }
-
-    .cases-list {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-      margin-top: clamp(3rem, 5vw, 4rem);
-    }
-    @media (max-width: 700px) { .cases-list { grid-template-columns: 1fr; } }
-
+    /* ============================================================  USE CASES  */
+    .cases-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1.5rem; margin-top:clamp(3rem,5vw,4rem); }
+    @media (max-width:700px) { .cases-grid { grid-template-columns:1fr; } }
     .case-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 2rem 2rem 2rem 2rem;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 1.25rem 1.5rem;
-      align-items: start;
-      transition: border-color var(--ease), transform var(--ease), box-shadow var(--ease);
+      background:var(--white); border-radius:var(--r-lg);
+      border:1px solid var(--border); padding:2rem;
+      box-shadow:var(--shadow-sm);
+      transition:box-shadow var(--ease), transform var(--ease), border-color var(--ease);
     }
-    .case-card:hover {
-      border-color: var(--border-strong);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(10, 31, 28, 0.08);
-    }
+    .case-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); border-color:var(--border-md); }
+    .case-tag { font-size:.67rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); margin-bottom:.875rem; display:block; }
+    .case-card h3 { margin-bottom:.5rem; }
+    .case-card p { font-size:.9rem; line-height:1.68; }
+    .case-icon { width:40px; height:40px; background:rgba(14,58,41,.07); border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; margin-bottom:1.25rem; color:var(--primary); }
 
-    .case-icon {
-      width: 42px; height: 42px;
-      background: var(--primary);
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--bg-raised); flex-shrink: 0;
+    /* ============================================================  AUDIENCE  */
+    .audience-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-top:clamp(2.5rem,4vw,3.5rem); }
+    @media (max-width:900px) { .audience-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:480px) { .audience-grid { grid-template-columns:1fr; } }
+    .audience-item {
+      background:var(--white); border:1px solid var(--border); border-radius:var(--r-md);
+      padding:1.25rem 1.125rem; display:flex; align-items:center; gap:.75rem;
+      font-size:.875rem; font-weight:500; color:var(--text-2);
+      box-shadow:var(--shadow-sm);
+      transition:border-color var(--ease), box-shadow var(--ease);
     }
-    .case-content h3 { margin-bottom: 0.4rem; font-size: 1rem; }
-    .case-content p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.62; }
-    .case-label {
-      grid-column: 1 / -1;
-      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--gold);
-    }
+    .audience-item:hover { border-color:var(--primary); box-shadow:var(--shadow-md); }
+    .audience-item svg { flex-shrink:0; color:var(--primary); }
 
-    /* ============================================================
-       WHO IT'S FOR
-    ============================================================ */
-    .audience-section { background: var(--bg); }
+    /* ============================================================  WORKFLOW  */
+    .workflow-section { background:var(--bg); }
+    .workflow-row { display:grid; grid-template-columns:repeat(5,1fr); gap:0; margin-top:clamp(3rem,5vw,4rem); position:relative; }
+    @media (max-width:900px) { .workflow-row { grid-template-columns:1fr; } }
+    /* connecting line */
+    .workflow-row::before {
+      content:''; position:absolute; top:22px; left:10%; right:10%; height:1px;
+      background:linear-gradient(to right, transparent, var(--border-md) 15%, var(--border-md) 85%, transparent);
+      pointer-events:none;
+    }
+    @media (max-width:900px) { .workflow-row::before { display:none; } }
+    .workflow-step { padding:0 1rem; text-align:center; position:relative; }
+    @media (max-width:900px) { .workflow-step { text-align:left; padding:1.25rem 0; border-bottom:1px solid var(--border); display:flex; gap:1.25rem; align-items:flex-start; } }
+    @media (max-width:900px) { .workflow-step:last-child { border-bottom:none; } }
+    .workflow-num {
+      width:44px; height:44px; border-radius:50%;
+      background:var(--primary); color:var(--white);
+      display:flex; align-items:center; justify-content:center;
+      font-size:.8rem; font-weight:700; margin:0 auto 1.25rem;
+      position:relative; z-index:1; flex-shrink:0;
+    }
+    @media (max-width:900px) { .workflow-num { margin:0; } }
+    .workflow-step-body { flex:1; }
+    .workflow-step h3 { font-size:.9375rem; margin-bottom:.375rem; }
+    .workflow-step p { font-size:.82rem; line-height:1.6; }
 
-    .audience-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-      gap: 1rem;
-      margin-top: clamp(3rem, 5vw, 4rem);
-    }
+    /* ============================================================  PRIVACY  */
+    .privacy-section { background:#6B8C83; }
+    .privacy-section .eyebrow { color:#3D2E0E; }
+    .privacy-section .eyebrow::before { background:rgba(61,46,14,.4); }
+    .privacy-section .section-header h2 { color:#0A1F1C; }
+    .privacy-section .section-header p { color:rgba(10,31,28,.65); }
+    .privacy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:clamp(2.5rem,4vw,3.5rem); }
+    @media (max-width:800px) { .privacy-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:500px) { .privacy-grid { grid-template-columns:1fr; } }
+    .privacy-card { background:rgba(255,255,255,.22); border:1px solid rgba(10,31,28,.08); border-radius:var(--r-md); padding:1.75rem; transition:background var(--ease), border-color var(--ease), box-shadow var(--ease); }
+    .privacy-card:hover { background:rgba(255,255,255,.34); border-color:rgba(10,31,28,.15); box-shadow:0 4px 20px rgba(10,31,28,.1); }
+    .privacy-icon { width:40px; height:40px; background:rgba(10,31,28,.1); border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; margin-bottom:1.125rem; color:#0E3A29; }
+    .privacy-card h3 { font-size:.9375rem; margin-bottom:.4rem; color:#0A1F1C; }
+    .privacy-card p { font-size:.875rem; color:rgba(10,31,28,.62); line-height:1.62; }
 
-    .audience-pill {
-      display: flex; align-items: center; gap: 0.875rem;
-      padding: 1.125rem 1.25rem;
-      background: var(--bg-sunken);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      font-size: 0.9rem; font-weight: 500; color: var(--text-2);
-      transition: border-color var(--ease), background var(--ease);
+    /* ============================================================  CTA BAND  */
+    .cta-band { background:var(--bg-alt); text-align:center; }
+    .cta-inner {
+      background:var(--primary); border-radius:var(--r-xl);
+      padding:clamp(3.5rem,7vw,6rem) clamp(2rem,6vw,6rem);
+      position:relative; overflow:hidden;
     }
-    .audience-pill:hover { background: var(--bg); border-color: var(--primary); }
-    .audience-pill svg { flex-shrink: 0; color: var(--primary); }
+    .cta-inner::before {
+      content:''; position:absolute; top:-60%; right:-10%;
+      width:500px; height:500px; border-radius:50%;
+      background:radial-gradient(circle, rgba(183,164,107,.07) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .cta-inner .eyebrow { color:var(--gold-lt); }
+    .cta-inner .eyebrow::before { background:rgba(183,164,107,.4); }
+    .cta-inner h2 { color:#EBE8DE; margin-bottom:1rem; }
+    .cta-inner > p { color:rgba(212,209,199,.65); max-width:480px; margin-inline:auto; margin-bottom:2.5rem; }
+    .cta-inner .store-badges { justify-content:center; margin-bottom:1.5rem; }
+    .cta-contact { font-size:.82rem; color:rgba(212,209,199,.5); }
+    .cta-contact a { color:rgba(183,164,107,.9); text-decoration:underline; text-underline-offset:3px; }
 
-    /* ============================================================
-       WORKFLOW
-    ============================================================ */
-    .workflow { background: var(--bg-sunken); }
-
-    .workflow-steps {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      position: relative;
-      margin-top: clamp(3rem, 5vw, 4rem);
-    }
-    @media (max-width: 900px) { .workflow-steps { grid-template-columns: 1fr; gap: 0; } }
-
-    .workflow-step {
-      padding: 1.75rem 1.25rem;
-      position: relative;
-      text-align: center;
-    }
-    .workflow-step::after {
-      content: '';
-      position: absolute; top: 2.75rem; right: 0;
-      width: 1px; height: 2rem;
-      background: var(--border);
-    }
-    .workflow-step:last-child::after { display: none; }
-    @media (max-width: 900px) {
-      .workflow-step { text-align: left; padding: 1.5rem 1.25rem; border-bottom: 1px solid var(--border); }
-      .workflow-step:last-child { border-bottom: none; }
-      .workflow-step::after { display: none; }
-    }
-
-    .workflow-step-num {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px;
-      background: var(--primary); color: var(--bg-raised);
-      border-radius: 50%;
-      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.02em;
-      margin-bottom: 1rem;
-    }
-    .workflow-step h3 { font-size: 0.9rem; margin-bottom: 0.4rem; color: var(--text); }
-    .workflow-step p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
-
-    /* ============================================================
-       PRIVACY
-    ============================================================ */
-    .privacy { background: #73978C; }
-    .privacy .eyebrow { color: #5C4A1E; }
-    .privacy .section-header h2 { color: #0A1F1C; }
-    .privacy .section-header p { color: rgba(10, 31, 28, 0.68); }
-
-    .privacy-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-top: clamp(2.5rem, 4vw, 3.5rem);
-    }
-
-    .privacy-card {
-      background: rgba(255, 255, 255, 0.18);
-      border: 1px solid rgba(10, 31, 28, 0.1);
-      border-radius: var(--radius-md);
-      padding: 1.75rem;
-      transition: border-color var(--ease), background var(--ease);
-    }
-    @media (max-width: 800px) { .privacy-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 500px) { .privacy-grid { grid-template-columns: 1fr; } }
-
-    .privacy-card:hover {
-      background: rgba(255, 255, 255, 0.28);
-      border-color: rgba(10, 31, 28, 0.2);
-    }
-    .privacy-card-icon {
-      width: 40px; height: 40px;
-      background: rgba(10, 31, 28, 0.1);
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 1.125rem; color: #0E3A29;
-    }
-    .privacy-card h3 { font-size: 0.9375rem; margin-bottom: 0.4rem; color: #0A1F1C; }
-    .privacy-card p { font-size: 0.875rem; color: rgba(10, 31, 28, 0.65); line-height: 1.62; }
-
-    /* ============================================================
-       DOWNLOAD CTA
-    ============================================================ */
-    .cta-band { background: var(--bg); text-align: center; }
-    .cta-band-inner {
-      background: var(--bg-sunken);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-xl);
-      padding: clamp(3.5rem, 7vw, 6rem) clamp(1.5rem, 5vw, 5rem);
-    }
-    .cta-band h2 { margin-bottom: 1rem; }
-    .cta-band > .container > .cta-band-inner > p {
-      max-width: 500px; margin-inline: auto; margin-bottom: 2.5rem;
-      color: var(--text-muted);
-    }
-    .cta-contact {
-      margin-top: 1.5rem;
-      font-size: 0.85rem; color: var(--text-faint);
-    }
-    .cta-contact a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
-    .cta-contact a:hover { color: var(--text); }
-
-    /* ============================================================
-       FOOTER
-    ============================================================ */
-    .site-footer {
-      padding-block: 3rem;
-      border-top: 1px solid var(--border);
-      background: var(--bg);
-    }
-    .footer-inner {
-      display: grid; grid-template-columns: 1fr auto;
-      gap: 2rem; align-items: start;
-    }
-    @media (max-width: 600px) { .footer-inner { grid-template-columns: 1fr; } }
-
-    .footer-logo img { height: 28px; width: auto; margin-bottom: 0.875rem; }
-    .footer-tagline { font-size: 0.875rem; color: var(--text-muted); max-width: 320px; line-height: 1.55; }
-    .footer-disclaimer {
-      font-size: 0.75rem; color: var(--text-faint); max-width: 360px;
-      margin-top: 0.875rem; line-height: 1.5;
-    }
-
-    .footer-links {
-      display: flex; flex-direction: column; gap: 0.625rem; align-items: flex-end;
-    }
-    @media (max-width: 600px) {
-      .footer-links { align-items: flex-start; flex-direction: row; flex-wrap: wrap; gap: 1rem; }
-    }
-    .footer-links a { font-size: 0.85rem; color: var(--text-muted); transition: color var(--ease); }
-    .footer-links a:hover { color: var(--text); }
-
-    .footer-copy {
-      margin-top: 2.5rem; padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 1rem; flex-wrap: wrap;
-    }
-    .footer-copy p { font-size: 0.78rem; color: var(--text-faint); }
-
-    /* ============================================================
-       SCREENSHOTS
-    ============================================================ */
-    .screenshots-section { background: var(--bg-sunken); }
-    .phones-showcase {
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 1.5rem;
-      margin-top: clamp(3rem, 5vw, 4.5rem);
-      padding-bottom: 1rem;
-    }
-    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
-    .phone-wrap.phone-side { opacity: 0.85; }
-    .phone-frame {
-      border: 3px solid #0A1F1C;
-      border-radius: 40px;
-      overflow: hidden;
-      box-shadow: 0 32px 64px rgba(10,31,28,0.16), 0 8px 16px rgba(10,31,28,0.1);
-      background: #0A1F1C;
-      width: 200px;
-    }
-    .phone-frame.phone-center {
-      width: 230px;
-      border-radius: 44px;
-      box-shadow: 0 48px 96px rgba(10,31,28,0.22), 0 16px 32px rgba(10,31,28,0.12);
-    }
-    .phone-frame img { width: 100%; display: block; }
-    .phone-caption {
-      font-size: 0.78rem;
-      color: var(--text-faint);
-      text-align: center;
-      max-width: 160px;
-      line-height: 1.45;
-      letter-spacing: 0.01em;
-    }
-    .phone-wrap.phone-left { transform: rotate(-3deg) translateY(20px); }
-    .phone-wrap.phone-right { transform: rotate(3deg) translateY(20px); }
-    @media (max-width: 700px) {
-      .phone-wrap.phone-side { display: none; }
-      .phone-frame.phone-center { width: 260px; }
-    }
-
-    /* ============================================================
-       ACCURACY
-    ============================================================ */
-    .accuracy-section { background: var(--primary); }
-    .accuracy-section .eyebrow { color: var(--gold-light); }
-    .accuracy-section .section-header h2 { color: #DDD9D0; }
-    .accuracy-section .section-header p { color: rgba(212,209,199,0.65); }
-    .accuracy-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-      margin-top: clamp(2.5rem, 4vw, 3.5rem);
-    }
-    .accuracy-card {
-      background: rgba(10,31,28,0.5);
-      border: 1px solid rgba(212,209,199,0.08);
-      border-radius: var(--radius-md);
-      padding: 1.75rem;
-      transition: background var(--ease), border-color var(--ease);
-    }
-    .accuracy-card:hover {
-      background: rgba(10,31,28,0.7);
-      border-color: rgba(183,164,107,0.2);
-    }
-    .accuracy-card-icon {
-      width: 40px; height: 40px;
-      background: rgba(183,164,107,0.12);
-      border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 1.125rem; color: #B7A46B;
-    }
-    .accuracy-card h3 { font-size: 0.9375rem; margin-bottom: 0.4rem; color: #DDD9D0; }
-    .accuracy-card p { font-size: 0.875rem; color: rgba(212,209,199,0.58); line-height: 1.65; }
+    /* ============================================================  FOOTER  */
+    .site-footer { background:var(--bg-alt); border-top:1px solid var(--border); padding-block:3.5rem; }
+    .footer-inner { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:3rem; }
+    @media (max-width:700px) { .footer-inner { grid-template-columns:1fr; gap:2rem; } }
+    .footer-logo { height:36px; width:auto; margin-bottom:1rem; }
+    .footer-tagline { font-size:.875rem; color:var(--text-muted); line-height:1.6; max-width:280px; margin-bottom:.875rem; }
+    .footer-disclaimer { font-size:.72rem; color:var(--text-faint); max-width:300px; line-height:1.55; }
+    .footer-col-title { font-size:.7rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text); margin-bottom:1.125rem; }
+    .footer-links { display:flex; flex-direction:column; gap:.625rem; }
+    .footer-links a { font-size:.875rem; color:var(--text-muted); transition:color var(--ease); }
+    .footer-links a:hover { color:var(--primary); }
+    .footer-copy { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border); }
+    .footer-copy p { font-size:.78rem; color:var(--text-faint); }
   </style>
 </head>
 <body>
-
   <a href="#main" class="skip-link">Skip to main content</a>
 
   <!-- NAV -->
-  <nav class="site-nav" aria-label="Main navigation">
+  <nav class="site-nav" id="nav" aria-label="Main navigation">
     <div class="nav-inner">
-      <a href="/" class="nav-logo" aria-label="Resolara home">
-        <img src="assets/images/SMALL-Resolara_V5.png" alt="Resolara" width="170" height="45" />
+      <a href="/" aria-label="Resolara home">
+        <img src="assets/images/SMALL-Resolara_V5.png" alt="Resolara" class="nav-logo" />
       </a>
       <ul class="nav-links" role="list">
         <li><a href="#features">Features</a></li>
@@ -861,713 +416,27 @@
         <li><a href="#workflow">How it works</a></li>
         <li><a href="#privacy">Privacy</a></li>
       </ul>
-      <a href="#download" class="btn btn-primary nav-cta">Download</a>
+      <a href="#download" class="btn btn-primary btn-sm">Download</a>
     </div>
   </nav>
 
   <main id="main">
 
-    <!-- ============================================================
-         HERO
-    ============================================================ -->
+    <!-- HERO -->
     <section class="hero" aria-labelledby="hero-heading">
+      <div class="hero-overlay" aria-hidden="true"></div>
       <div class="container">
-        <div class="hero-inner">
-
-          <!-- Text column -->
-          <div class="hero-text-col">
-            <h1 id="hero-heading">
-              Show your patients<br />
-              <em>exactly what you mean</em>
-            </h1>
-
-            <p class="hero-desc">
-              Resolara turns a medical report image into a practitioner-reviewed anatomical illustration in seconds — giving clinicians a precise, visual language for consultations.
-            </p>
-
-            <div class="store-badges">
-              <a href="#" class="store-badge" aria-label="Download on the App Store">
-                <span class="store-badge-icon" aria-hidden="true">
-                  <svg width="17" height="20" viewBox="0 0 384 512" fill="currentColor">
-                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-16.9 75.8-16.9 31.8 0 48.3 16.9 76.4 16.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                  </svg>
-                </span>
-                <div class="store-badge-text">
-                  <span class="store-badge-pre">Download on the</span>
-                  <span class="store-badge-name">App Store</span>
-                </div>
-              </a>
-              <a href="#" class="store-badge" aria-label="Get it on Google Play">
-                <span class="store-badge-icon" aria-hidden="true">
-                  <svg width="18" height="20" viewBox="0 0 512 512" fill="currentColor">
-                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.7 1.5 247.2-247v-5.8L47 0zm425.6 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c17.4-9.7 17.4-25.8 0-35.3l-1.2-.5zM57.7 512l247.2-247-65.7-64.5L57.7 512z"/>
-                  </svg>
-                </span>
-                <div class="store-badge-text">
-                  <span class="store-badge-pre">Get it on</span>
-                  <span class="store-badge-name">Google Play</span>
-                </div>
-              </a>
-            </div>
-
-            <p class="hero-sub">Educational communication tool &mdash; not diagnostic software.</p>
+        <div class="hero-content">
+          <div class="hero-kicker">
+            <span class="hero-kicker-dot"></span>
+            Clinical visualization tool
           </div>
-
-          <!-- Visual column -->
-          <div class="hero-visual-col" aria-hidden="true">
-            <div class="hero-glow"></div>
-            <div class="hero-ring hero-ring-1"></div>
-            <div class="hero-ring hero-ring-2"></div>
-            <div class="hero-ring hero-ring-3"></div>
-
-            <!-- Floating card: finding with confidence -->
-            <div class="hero-float hero-float-1">
-              <p class="float-label">Finding extracted</p>
-              <p class="float-value">Complete ACL rupture with pivot-shift contusions</p>
-              <span class="float-conf">
-                <span class="float-conf-dot"></span>
-                97% confidence
-              </span>
-            </div>
-
-            <!-- Phone -->
-            <div class="hero-phone">
-              <img src="assets/screenshots/visualization.png" alt="Resolara anatomical visualization" />
-            </div>
-
-            <!-- Floating card: approved -->
-            <div class="hero-float hero-float-2">
-              <p class="float-label">Practitioner approved</p>
-              <p class="float-value">Visualization saved</p>
-              <p class="float-sub">Encrypted · On-device</p>
-              <p class="float-check">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
-                </svg>
-                Approved &amp; saved
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         PATIENT UNDERSTANDING
-    ============================================================ -->
-    <section class="patient-section section" aria-labelledby="patient-heading">
-      <div class="container">
-        <div class="patient-inner">
-
-          <div class="patient-content">
-            <span class="eyebrow">The real problem</span>
-            <h2 id="patient-heading">You got the report. You still don't know what's happening.</h2>
-            <p>
-              Every day, patients arrive at consultations holding a report they cannot read. The language is dense, clinical, and written for specialists — not for the person it's about.
-            </p>
-            <p>
-              "Posterior disc protrusion at C5/C6 with mild effacement of the thecal sac." Your patient has been handed a description of their own body, and it might as well be a foreign language.
-            </p>
-            <p>
-              So they do what everyone does: they go home and search online. An hour later they're more frightened than informed, surrounded by worst-case scenarios that may have nothing to do with their situation.
-            </p>
-            <p>
-              This is the gap Resolara helps you close. When you use Resolara in consultation, your patient doesn't have to imagine what's happening inside their body — <strong>they see it.</strong> On screen. Clearly. In context. Reviewed and explained by you, the clinician sitting in front of them.
-            </p>
-          </div>
-
-          <div class="patient-cards" aria-hidden="true">
-            <div class="patient-card-before">
-              <div class="patient-card-before-header">
-                <span class="eyebrow">What the report says</span>
-              </div>
-              <div class="patient-card-before-body">
-                <p>Cervical spine alignment is maintained.</p>
-                <p>Mild degenerative disc space narrowing at C5/C6.</p>
-                <p class="highlight-jargon"><strong>Posterior disc protrusion at C5/C6</strong> with mild effacement of the anterior thecal sac.</p>
-                <p class="highlight-jargon">No cord compression identified. Mild bilateral <strong>foraminal stenosis, right greater than left.</strong></p>
-                <p>Facet joint degenerative changes noted at C4/C5 and C5/C6.</p>
-                <p><strong>IMPRESSION:</strong> Degenerative cervical spondylosis most pronounced at C5/C6 with disc protrusion and bilateral foraminal compromise.</p>
-              </div>
-            </div>
-
-            <div class="patient-card-after">
-              <span class="eyebrow">What Resolara shows</span>
-              <p>A clear 2D anatomical illustration of the cervical spine — showing the C5/C6 level, the disc protrusion, and the affected foramen — reviewed and approved by the treating clinician before the patient sees it.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         APP SCREENSHOTS
-    ============================================================ -->
-    <section class="screenshots-section section" aria-labelledby="screenshots-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">See it in action</span>
-          <h2 id="screenshots-heading">From report to illustration. In seconds.</h2>
-        </div>
-
-        <div class="phones-showcase" aria-hidden="true">
-
-          <div class="phone-wrap phone-side phone-left">
-            <div class="phone-frame">
-              <img src="assets/screenshots/findings.png" alt="" />
-            </div>
-            <p class="phone-caption">Review extracted findings, each scored for confidence</p>
-          </div>
-
-          <div class="phone-wrap phone-center">
-            <div class="phone-frame phone-center">
-              <img src="assets/screenshots/visualization.png" alt="" />
-            </div>
-            <p class="phone-caption">Practitioner-reviewed anatomical illustration</p>
-          </div>
-
-          <div class="phone-wrap phone-side phone-right">
-            <div class="phone-frame">
-              <img src="assets/screenshots/generating.png" alt="" />
-            </div>
-            <p class="phone-caption">Generating &mdash; de-identified findings only</p>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         ACCURACY
-    ============================================================ -->
-    <section class="accuracy-section section" aria-labelledby="accuracy-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">Precision you can trust</span>
-          <h2 id="accuracy-heading">Every finding scored. Every output reviewed.</h2>
-          <p>Resolara takes a meticulous approach to extraction. Every finding is assigned a confidence score before the practitioner ever sees it — so nothing proceeds without deliberate, clinically grounded review. The practitioner sees precisely how certain the system is, retains full editorial control over what advances to generation, and gives explicit confirmation before any illustration is produced. The output is not automated; it is practitioner-approved, every time.</p>
-        </div>
-
-        <div class="accuracy-grid">
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-              </svg>
-            </div>
-            <h3>Confidence scored</h3>
-            <p>Every extracted finding is assigned a confidence score. The practitioner sees precisely how certain the extraction is before deciding what proceeds to generation.</p>
-          </div>
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-              </svg>
-            </div>
-            <h3>Practitioner-gated</h3>
-            <p>No illustration is generated without explicit practitioner confirmation. The clinician reviews, edits, or removes any finding — full control, every time.</p>
-          </div>
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
-            <h3>De-identified before generation</h3>
-            <p>Patient identifiers are stripped server-side before the AI ever sees the data. The illustration is built from clinically structured findings, not raw report text.</p>
-          </div>
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
-            </div>
-            <h3>Regeneration on demand</h3>
-            <p>Not satisfied with the output? Regenerate instantly. The practitioner approves the final result — only what meets their standard is saved.</p>
-          </div>
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-              </svg>
-            </div>
-            <h3>Structured extraction</h3>
-            <p>Findings are extracted into a structured format with body region tagging. This precision informs a more anatomically accurate illustration.</p>
-          </div>
-
-          <div class="accuracy-card">
-            <div class="accuracy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
-              </svg>
-            </div>
-            <h3>Reviewed. Approved. Saved.</h3>
-            <p>The three-step final gate. Review the illustration. Approve it. Only then is it stored — encrypted, on-device, under your control.</p>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         THE CONVERSATION
-    ============================================================ -->
-    <section class="conversation" aria-labelledby="conversation-heading">
-      <div class="container">
-        <div class="conversation-inner">
-
-          <div>
-            <span class="eyebrow" style="color: var(--gold-light);">The problem</span>
-            <p class="conversation-lead" id="conversation-heading">
-              Patients leave consultations <strong>understanding the words,</strong> but not the condition.
-            </p>
-            <div class="conversation-stats">
-              <div class="stat-cell">
-                <p class="stat-number">60%</p>
-                <p class="stat-label">of patients cannot accurately recall their diagnosis after the appointment</p>
-              </div>
-              <div class="stat-cell">
-                <p class="stat-number">3&times;</p>
-                <p class="stat-label">better retention when information is delivered visually alongside verbal explanation</p>
-              </div>
-              <div class="stat-cell">
-                <p class="stat-number">74%</p>
-                <p class="stat-label">of practitioners say patients ask them to re-explain findings they already covered</p>
-              </div>
-              <div class="stat-cell">
-                <p class="stat-number">89%</p>
-                <p class="stat-label">of patients say they would better follow a care plan if they understood their diagnosis visually</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="conversation-body">
-            <span class="eyebrow" style="color: var(--gold-light);">The solution</span>
-            <p>
-              You've spent years mastering the language of medicine. Your patients haven't. The gap between what you know and what they understand isn't a failure of communication — it's a limitation of words alone.
-            </p>
-            <p>
-              When a patient hears "posterior disc herniation at L4–L5 with moderate foraminal stenosis," they hear uncertainty. When they <em style="color: rgba(212,209,199,0.9);">see</em> exactly where their disc is and what it means for the nerve running beside it, they understand.
-            </p>
-            <p>
-              Resolara gives you an anatomical illustration — created in seconds from the report you're already holding, reviewed and approved by you before it's shown. The image carries what words alone cannot. Your consultation becomes clearer, more efficient, and more trusted.
-            </p>
-            <p style="color: rgba(212,209,199,0.5); font-size: 0.85rem; margin-top: 2rem; line-height: 1.6;">
-              Resolara is an educational communication tool. Outputs are anatomical illustrations for practitioner use only — not diagnostic software. All clinical judgment remains with the healthcare professional.
-            </p>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         FEATURES
-    ============================================================ -->
-    <section class="section" id="features" aria-labelledby="features-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">Features</span>
-          <h2 id="features-heading">Everything the practitioner needs. Nothing they don't.</h2>
-          <p>Built around a single clinical workflow — from report in hand to approved visualization on screen. Lean, focused, and private by design.</p>
-        </div>
-
-        <div class="features-grid">
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-              </svg>
-            </div>
-            <h3>Capture or import</h3>
-            <p>Photograph a report directly or import from your photo library. Image metadata is stripped before anything leaves the device.</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-              </svg>
-            </div>
-            <h3>AI-powered extraction</h3>
-            <p>Clinically relevant findings are extracted and structured automatically. Patient identifiers are filtered server-side before any AI processing occurs.</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-              </svg>
-            </div>
-            <h3>Full practitioner review</h3>
-            <p>Inspect every extracted finding before anything proceeds. Edit, reorder, or remove. You control precisely what the illustration will represent.</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-              </svg>
-            </div>
-            <h3>Anatomical illustration</h3>
-            <p>A neutral, 2D anatomical illustration is generated from your approved findings — clear enough for patients, accurate enough for clinical use.</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
-              </svg>
-            </div>
-            <h3>Approve before saving</h3>
-            <p>Nothing is stored without your explicit sign-off. Regenerate if needed. Every saved output reflects a deliberate clinical decision — yours.</p>
-          </div>
-
-          <div class="feature-card">
-            <div class="feature-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-              </svg>
-            </div>
-            <h3>Encrypted local history</h3>
-            <p>Approved visualizations are stored on-device in encrypted form. Raw report images are purged once processing is complete. Minimal retention by default.</p>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         USE CASES
-    ============================================================ -->
-    <section class="use-cases section" id="use-cases" aria-labelledby="cases-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">Use cases</span>
-          <h2 id="cases-heading">Where Resolara changes the conversation</h2>
-          <p>From post-imaging consultations to referral letters, there are moments in every clinical day where a visual says more than a paragraph ever could.</p>
-        </div>
-
-        <div class="cases-list">
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Post-imaging consultation</p>
-              <h3>Show the patient exactly what was found</h3>
-              <p>Stop describing anatomy with words and start showing it. Walk a patient through their scan findings with an illustration generated directly from the report — reviewed by you, accurate to the findings, and immediately understandable.</p>
-            </div>
-          </div>
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Referral &amp; handover</p>
-              <h3>Give the next practitioner instant context</h3>
-              <p>Attach a clear anatomical illustration to a referral letter or handover summary. The receiving clinician sees the relevant anatomy at a glance — reducing the need for follow-up queries and accelerating continuity of care.</p>
-            </div>
-          </div>
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Treatment planning</p>
-              <h3>Build shared understanding before you begin</h3>
-              <p>When a patient can see what you're treating and why, consent becomes genuine. Use Resolara to walk through the anatomical context of a proposed intervention — so the patient understands not just what will happen, but where and why.</p>
-            </div>
-          </div>
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-1.342m-7.482 0c.385.001.769.005 1.149.014M12 13.489V21m0-7.511a50.69 50.69 0 0 0-3.741-1.342M12 13.49v.001" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Clinical education</p>
-              <h3>Teach anatomy in context of real cases</h3>
-              <p>For clinical educators and training programmes, Resolara bridges the gap between textbook anatomy and patient presentations. Generate case-specific illustrations that make abstract structures concrete for learners at every level.</p>
-            </div>
-          </div>
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Rehabilitation &amp; physiotherapy</p>
-              <h3>Help patients understand their own recovery</h3>
-              <p>Patients who understand their injury recover with more purpose. Show the structure involved, the extent of the finding, and the anatomy of the region being rehabilitated — and watch compliance improve alongside comprehension.</p>
-            </div>
-          </div>
-
-          <div class="case-card">
-            <div class="case-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-              </svg>
-            </div>
-            <div class="case-content">
-              <p class="case-label">Second opinion &amp; specialist review</p>
-              <h3>Communicate findings across disciplines</h3>
-              <p>When seeking or providing a specialist opinion, a clear anatomical illustration creates immediate alignment between clinicians — removing ambiguity from written descriptions and making the discussion more precise from the first exchange.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         WHO IT'S FOR
-    ============================================================ -->
-    <section class="audience-section section" aria-labelledby="audience-heading">
-      <div class="container">
-        <div class="section-header text-center">
-          <span class="eyebrow">Who it's for</span>
-          <h2 id="audience-heading">Built for licensed clinical professionals</h2>
-          <p>Resolara is available exclusively to licensed healthcare practitioners. An activation code is required at first launch — ensuring the tool remains in qualified hands.</p>
-        </div>
-
-        <div class="audience-grid">
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Physicians &amp; GPs
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Specialist consultants
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Radiologists
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Physiotherapists
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Orthopaedic surgeons
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Sports medicine physicians
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Allied health professionals
-          </div>
-          <div class="audience-pill">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            Clinical educators
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         WORKFLOW
-    ============================================================ -->
-    <section class="workflow section" id="workflow" aria-labelledby="workflow-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">How it works</span>
-          <h2 id="workflow-heading">Five steps. Practitioner in control.</h2>
-          <p>The entire pipeline runs through a secure backend. No AI vendor keys are stored on the device. PII is filtered before any AI call.</p>
-        </div>
-
-        <ol class="workflow-steps" role="list">
-          <li class="workflow-step">
-            <div class="workflow-step-num" aria-hidden="true">01</div>
-            <h3>Capture or import</h3>
-            <p>Photo the report or import from your library. Metadata stripped on device.</p>
-          </li>
-          <li class="workflow-step">
-            <div class="workflow-step-num" aria-hidden="true">02</div>
-            <h3>OCR &amp; extraction</h3>
-            <p>Findings structured server-side. PII filtered before AI processing.</p>
-          </li>
-          <li class="workflow-step">
-            <div class="workflow-step-num" aria-hidden="true">03</div>
-            <h3>Review findings</h3>
-            <p>Edit, remove, or reorder. You decide what the illustration represents.</p>
-          </li>
-          <li class="workflow-step">
-            <div class="workflow-step-num" aria-hidden="true">04</div>
-            <h3>Generate illustration</h3>
-            <p>Neutral 2D anatomical illustration created from your approved findings.</p>
-          </li>
-          <li class="workflow-step">
-            <div class="workflow-step-num" aria-hidden="true">05</div>
-            <h3>Approve &amp; save</h3>
-            <p>Your sign-off required. Stored encrypted on-device. Raw images purged.</p>
-          </li>
-        </ol>
-
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         PRIVACY
-    ============================================================ -->
-    <section class="privacy section" id="privacy" aria-labelledby="privacy-heading">
-      <div class="container">
-
-        <div class="section-header text-center">
-          <span class="eyebrow">Privacy &amp; security</span>
-          <h2 id="privacy-heading">Designed for sensitive clinical data</h2>
-          <p class="text-muted">Every design decision in Resolara starts with data protection. Report content is sensitive. We treat it that way.</p>
-        </div>
-
-        <div class="privacy-grid">
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z" />
-              </svg>
-            </div>
-            <h3>HIPAA-aligned handling</h3>
-            <p>Designed with HIPAA-aligned data handling principles throughout. No compliance claim is made without the full legal, policy, and contractual framework.</p>
-          </div>
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
-            <h3>De-identified before AI</h3>
-            <p>Patient identifiers are filtered server-side before any AI provider receives data. Raw content never reaches an AI in identifiable form.</p>
-          </div>
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-              </svg>
-            </div>
-            <h3>No keys on the device</h3>
-            <p>AI vendor credentials never reside in the mobile app. All processing is orchestrated through Resolara's secure backend proxy.</p>
-          </div>
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-              </svg>
-            </div>
-            <h3>Encrypted on-device storage</h3>
-            <p>Approved visualizations are encrypted at rest. Raw uploads are purged once processing completes. Approved outputs are the only retained artefact.</p>
-          </div>
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-              </svg>
-            </div>
-            <h3>Practitioner approval required</h3>
-            <p>Every visualization must be explicitly approved before it is saved. Clinical judgment is never automated away — you remain the accountable decision-maker.</p>
-          </div>
-
-          <div class="privacy-card">
-            <div class="privacy-card-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-              </svg>
-            </div>
-            <h3>Conservative retention defaults</h3>
-            <p>Retention defaults to minimal. Raw content is cleaned up automatically. Policies are configurable per deployment — but conservative unless explicitly changed.</p>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <div class="divider" role="separator"></div>
-
-    <!-- ============================================================
-         DOWNLOAD CTA
-    ============================================================ -->
-    <section class="cta-band section" id="download" aria-labelledby="download-heading">
-      <div class="container">
-        <div class="cta-band-inner">
-          <span class="eyebrow">Download</span>
-          <h2 id="download-heading">Available on iOS and Android</h2>
-          <p>For licensed healthcare professionals. Activation required at first launch.</p>
-
-          <div class="store-badges" style="margin-bottom: 1.75rem;">
+          <h1 id="hero-heading">Show patients <em>exactly</em><br>what's happening</h1>
+          <p class="hero-desc">Resolara turns a medical report into a practitioner-reviewed anatomical illustration in seconds — giving clinicians a precise visual language for every consultation.</p>
+          <div class="store-badges">
             <a href="#" class="store-badge" aria-label="Download on the App Store">
               <span class="store-badge-icon" aria-hidden="true">
-                <svg width="17" height="20" viewBox="0 0 384 512" fill="currentColor">
-                  <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-16.9 75.8-16.9 31.8 0 48.3 16.9 76.4 16.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                </svg>
+                <svg width="17" height="20" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-16.9 75.8-16.9 31.8 0 48.3 16.9 76.4 16.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
               </span>
               <div class="store-badge-text">
                 <span class="store-badge-pre">Download on the</span>
@@ -1576,9 +445,7 @@
             </a>
             <a href="#" class="store-badge" aria-label="Get it on Google Play">
               <span class="store-badge-icon" aria-hidden="true">
-                <svg width="18" height="20" viewBox="0 0 512 512" fill="currentColor">
-                  <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.7 1.5 247.2-247v-5.8L47 0zm425.6 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c17.4-9.7 17.4-25.8 0-35.3l-1.2-.5zM57.7 512l247.2-247-65.7-64.5L57.7 512z"/>
-                </svg>
+                <svg width="18" height="20" viewBox="0 0 512 512" fill="currentColor"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.7 1.5 247.2-247v-5.8L47 0zm425.6 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c17.4-9.7 17.4-25.8 0-35.3l-1.2-.5zM57.7 512l247.2-247-65.7-64.5L57.7 512z"/></svg>
               </span>
               <div class="store-badge-text">
                 <span class="store-badge-pre">Get it on</span>
@@ -1586,7 +453,429 @@
               </div>
             </a>
           </div>
+          <p class="hero-sub">Educational communication tool — not diagnostic software.</p>
+        </div>
+      </div>
+      <div class="hero-scroll" aria-hidden="true">
+        <div class="hero-scroll-line"></div>
+      </div>
+    </section>
 
+    <!-- STATS BAND -->
+    <section class="stats-band" aria-label="Key statistics">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <p class="stat-num"><span>60</span>%</p>
+            <p class="stat-desc">of patients cannot recall their diagnosis after leaving the appointment</p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-num"><span>3</span>×</p>
+            <p class="stat-desc">better retention when findings are communicated visually alongside verbal explanation</p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-num"><span>74</span>%</p>
+            <p class="stat-desc">of practitioners report patients ask them to re-explain findings already covered</p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-num"><span>89</span>%</p>
+            <p class="stat-desc">of patients say they would better follow a care plan if they understood their diagnosis visually</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROBLEM / SOLUTION -->
+    <section class="section bg-white" aria-labelledby="problem-heading">
+      <div class="container">
+        <div class="problem-inner">
+
+          <div class="problem-text">
+            <span class="eyebrow">The communication gap</span>
+            <h2 id="problem-heading">They got the report. They still don't know what's wrong.</h2>
+            <p>Every day, patients leave clinics holding a report written for specialists — dense with clinical terminology that means nothing to them. "Posterior disc protrusion at C5/C6 with mild effacement of the anterior thecal sac." It's their own body. It reads like a foreign language.</p>
+            <p>They go home and search online. An hour later they're more frightened than informed. The gap between what you know and what they understand isn't a failure of your communication — it's a limitation of words alone.</p>
+            <p>When you use Resolara in consultation, the patient doesn't have to imagine. They <strong style="color:var(--primary)">see it</strong> — on screen, in context, reviewed and approved by you.</p>
+          </div>
+
+          <div>
+            <div class="report-card">
+              <div class="report-card-head">
+                <div class="report-card-head-dot"></div>
+                <div class="report-card-head-dot"></div>
+                <div class="report-card-head-dot"></div>
+                <span>Radiology Report — what the patient receives</span>
+              </div>
+              <div class="report-card-body">
+                <p class="report-line"><strong>FINDINGS:</strong></p>
+                <p class="report-line">Cervical spine alignment maintained. Mild</p>
+                <p class="report-line">degenerative disc narrowing at C5/C6.</p>
+                <p class="report-line hl"><strong>Posterior disc protrusion at C5/C6</strong> with mild</p>
+                <p class="report-line hl">effacement of the anterior thecal sac. Mild</p>
+                <p class="report-line hl">bilateral foraminal stenosis, <strong>right &gt; left.</strong></p>
+                <p class="report-line">Facet joint changes at C4/C5 and C5/C6.</p>
+                <p class="report-line"><strong>IMPRESSION:</strong> Degenerative cervical</p>
+                <p class="report-line">spondylosis most pronounced at C5/C6.</p>
+              </div>
+              <div class="report-card-foot">
+                <p>Highlighted findings are extracted, de-identified, and used to generate the illustration.</p>
+              </div>
+            </div>
+
+            <div class="resolara-result">
+              <div class="resolara-result-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
+              </div>
+              <div>
+                <p class="resolara-result-label">What Resolara shows</p>
+                <p class="resolara-result-text">A clear 2D anatomical illustration of the cervical spine — showing the C5/C6 level, the disc protrusion, and the affected foramen — reviewed and approved by the clinician before the patient sees it.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- APP SCREENSHOTS -->
+    <section class="screenshots-section section" id="screenshots" aria-labelledby="screenshots-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">See it in action</span>
+          <h2 id="screenshots-heading">From report to illustration — in seconds</h2>
+          <p>Every step of the workflow is designed around practitioner control. Review findings, confirm what proceeds, and approve the final output before anything is saved.</p>
+        </div>
+        <div class="phones-showcase" aria-hidden="true">
+          <div class="phone-wrap phone-side phone-left">
+            <div class="phone-frame"><img src="assets/screenshots/findings.png" alt="" /></div>
+            <p class="phone-caption">Review extracted findings, each scored for confidence</p>
+          </div>
+          <div class="phone-wrap">
+            <div class="phone-frame center"><img src="assets/screenshots/visualization.png" alt="" /></div>
+            <p class="phone-caption">Practitioner-reviewed anatomical illustration</p>
+          </div>
+          <div class="phone-wrap phone-side phone-right">
+            <div class="phone-frame"><img src="assets/screenshots/generating.png" alt="" /></div>
+            <p class="phone-caption">Generating — de-identified findings only</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- FEATURES -->
+    <section class="section bg-white" id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">Features</span>
+          <h2 id="features-heading">Everything the practitioner needs. Nothing they don't.</h2>
+          <p>Built around a single clinical workflow. Lean, focused, and private by design.</p>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/></svg>
+            </div>
+            <h3>Capture or import</h3>
+            <p>Photograph a report or import from your library. Image metadata is stripped before anything leaves the device.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/></svg>
+            </div>
+            <h3>AI-powered extraction</h3>
+            <p>Clinically relevant findings are extracted and structured server-side. Patient identifiers are filtered before any AI processing.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+            </div>
+            <h3>Full practitioner review</h3>
+            <p>Inspect every extracted finding before anything proceeds. Edit, reorder, or remove. You control what the illustration represents.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg>
+            </div>
+            <h3>Anatomical illustration</h3>
+            <p>A neutral, 2D anatomical illustration generated from your confirmed findings — clear enough for patients, precise enough for clinical use.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></svg>
+            </div>
+            <h3>Approve before saving</h3>
+            <p>Nothing is stored without your explicit sign-off. Regenerate instantly if needed. Every saved output reflects a deliberate clinical decision.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+            </div>
+            <h3>Encrypted local history</h3>
+            <p>Approved visualizations are stored on-device, encrypted at rest. Raw report images are purged once processing completes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCURACY -->
+    <section class="accuracy-section section" id="accuracy" aria-labelledby="accuracy-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">Precision you can trust</span>
+          <h2 id="accuracy-heading">Every finding scored. Every output reviewed.</h2>
+          <p>Extraction is meticulous. Every finding comes back with a confidence score the practitioner can see, interrogate, and act on. Nothing proceeds to generation without deliberate, clinician-gated confirmation.</p>
+        </div>
+        <div class="accuracy-grid">
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            </div>
+            <h3>Confidence scored</h3>
+            <p>Every extracted finding is assigned a confidence score. The practitioner sees exactly how certain the extraction is before deciding what proceeds to generation.</p>
+          </div>
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
+            </div>
+            <h3>Practitioner-gated</h3>
+            <p>No illustration is generated without explicit practitioner confirmation. The clinician reviews, edits, or removes any finding — full control, every time.</p>
+          </div>
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </div>
+            <h3>De-identified before generation</h3>
+            <p>Patient identifiers are stripped server-side before the AI processes anything. The illustration is built from structured clinical findings, not raw report text.</p>
+          </div>
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+            </div>
+            <h3>Regeneration on demand</h3>
+            <p>Not satisfied with the output? Regenerate instantly. The practitioner approves the final result — only what meets their standard is saved.</p>
+          </div>
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M5 14.5l-1.554.394a2.255 2.255 0 00-.346 4.223l.003.001A48.554 48.554 0 0012 21c2.773 0 5.491-.235 8.135-.687l.003-.001a2.255 2.255 0 00-.346-4.223L18 15.75"/></svg>
+            </div>
+            <h3>Structured extraction</h3>
+            <p>Findings are extracted into a structured format with body region tagging. This precision informs a more anatomically accurate and clinically grounded illustration.</p>
+          </div>
+          <div class="accuracy-card">
+            <div class="accuracy-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h3>Reviewed. Approved. Saved.</h3>
+            <p>The three-step final gate. Review the illustration. Approve it. Only then is it stored — encrypted, on-device, under your control.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- USE CASES -->
+    <section class="section bg-tinted" id="use-cases" aria-labelledby="cases-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">Use cases</span>
+          <h2 id="cases-heading">Where Resolara changes the conversation</h2>
+          <p>From post-imaging consultations to referral letters — moments in every clinical day where a visual says more than a paragraph ever could.</p>
+        </div>
+        <div class="cases-grid">
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></svg>
+            </div>
+            <span class="case-tag">Post-imaging consultation</span>
+            <h3>Show the patient exactly what was found</h3>
+            <p>Walk a patient through their scan findings with an illustration generated directly from the report — reviewed by you, accurate to the findings, immediately understandable.</p>
+          </div>
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+            </div>
+            <span class="case-tag">Referral &amp; handover</span>
+            <h3>Give the next clinician instant context</h3>
+            <p>Attach a clear anatomical illustration to a referral or handover summary. The receiving clinician sees the relevant anatomy at a glance — reducing follow-up queries.</p>
+          </div>
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+            </div>
+            <span class="case-tag">Treatment planning</span>
+            <h3>Build shared understanding before you begin</h3>
+            <p>When a patient can see what you're treating and why, consent becomes genuine. Walk through the anatomical context of a proposed intervention before it begins.</p>
+          </div>
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+            </div>
+            <span class="case-tag">Rehabilitation</span>
+            <h3>Help patients understand their own recovery</h3>
+            <p>Patients who understand their injury recover with more purpose. Show the structure involved and the anatomy being rehabilitated — watch compliance improve alongside comprehension.</p>
+          </div>
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 013.741-1.342m-7.482 0c.385.001.769.005 1.149.014M12 13.489V21"/></svg>
+            </div>
+            <span class="case-tag">Clinical education</span>
+            <h3>Teach anatomy in context of real cases</h3>
+            <p>Bridge the gap between textbook anatomy and real presentations. Generate case-specific illustrations that make abstract structures concrete for learners at every level.</p>
+          </div>
+          <div class="case-card">
+            <div class="case-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>
+            </div>
+            <span class="case-tag">Second opinion</span>
+            <h3>Communicate findings across disciplines</h3>
+            <p>A clear anatomical illustration creates immediate alignment between clinicians — removing ambiguity from written descriptions and making cross-discipline discussions more precise.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHO IT'S FOR -->
+    <section class="section bg-white" aria-labelledby="audience-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">Who it's for</span>
+          <h2 id="audience-heading">Built for licensed clinical professionals</h2>
+          <p>Resolara is available exclusively to licensed healthcare practitioners. An activation code is required at first launch.</p>
+        </div>
+        <div class="audience-grid">
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Physicians &amp; GPs</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Specialist consultants</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Radiologists</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Physiotherapists</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Orthopaedic surgeons</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Sports medicine physicians</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Allied health professionals</div>
+          <div class="audience-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>Clinical educators</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="workflow-section section" id="workflow" aria-labelledby="workflow-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">How it works</span>
+          <h2 id="workflow-heading">Five steps. Practitioner in control.</h2>
+          <p>The entire pipeline runs through a secure backend. No AI vendor keys are stored on the device. PII is filtered before any AI call.</p>
+        </div>
+        <ol class="workflow-row" role="list">
+          <li class="workflow-step">
+            <div class="workflow-num" aria-hidden="true">01</div>
+            <div class="workflow-step-body">
+              <h3>Capture or import</h3>
+              <p>Photo the report or import from your library. Metadata stripped on device.</p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-num" aria-hidden="true">02</div>
+            <div class="workflow-step-body">
+              <h3>OCR &amp; extraction</h3>
+              <p>Findings structured server-side. PII filtered before AI processing.</p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-num" aria-hidden="true">03</div>
+            <div class="workflow-step-body">
+              <h3>Review findings</h3>
+              <p>Edit, remove, or reorder. You decide what the illustration represents.</p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-num" aria-hidden="true">04</div>
+            <div class="workflow-step-body">
+              <h3>Generate</h3>
+              <p>Neutral 2D anatomical illustration created from confirmed findings.</p>
+            </div>
+          </li>
+          <li class="workflow-step">
+            <div class="workflow-num" aria-hidden="true">05</div>
+            <div class="workflow-step-body">
+              <h3>Approve &amp; save</h3>
+              <p>Your sign-off required. Stored encrypted on-device. Raw images purged.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section class="privacy-section section" id="privacy" aria-labelledby="privacy-heading">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="eyebrow">Privacy &amp; security</span>
+          <h2 id="privacy-heading">Designed for sensitive clinical data</h2>
+          <p>Every design decision starts with data protection. Report content is sensitive. We treat it that way.</p>
+        </div>
+        <div class="privacy-grid">
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0121.75 8.25z"/></svg></div>
+            <h3>HIPAA-aligned handling</h3>
+            <p>Designed with HIPAA-aligned data handling principles. No compliance claim is made without the full legal and contractual framework.</p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg></div>
+            <h3>De-identified before AI</h3>
+            <p>Patient identifiers are filtered server-side before any AI provider receives data. Raw content never reaches an AI in identifiable form.</p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg></div>
+            <h3>No keys on the device</h3>
+            <p>AI vendor credentials never reside in the mobile app. All processing is orchestrated through Resolara's secure backend proxy.</p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg></div>
+            <h3>Encrypted on-device storage</h3>
+            <p>Approved visualizations are encrypted at rest. Raw uploads are purged once processing completes. Approved outputs are the only retained artefact.</p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg></div>
+            <h3>Practitioner approval required</h3>
+            <p>Every visualization must be explicitly approved before it is saved. Clinical judgment is never automated away.</p>
+          </div>
+          <div class="privacy-card">
+            <div class="privacy-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+            <h3>Conservative retention defaults</h3>
+            <p>Retention defaults to minimal. Raw content is cleaned up automatically. Policies are configurable per deployment — conservative unless explicitly changed.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOWNLOAD CTA -->
+    <section class="cta-band section" id="download" aria-labelledby="download-heading">
+      <div class="container">
+        <div class="cta-inner">
+          <span class="eyebrow">Download</span>
+          <h2 id="download-heading">Available on iOS and Android</h2>
+          <p>For licensed healthcare professionals. Activation required at first launch.</p>
+          <div class="store-badges">
+            <a href="#" class="store-badge" aria-label="Download on the App Store">
+              <span class="store-badge-icon" aria-hidden="true">
+                <svg width="17" height="20" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-16.9 75.8-16.9 31.8 0 48.3 16.9 76.4 16.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+              </span>
+              <div class="store-badge-text">
+                <span class="store-badge-pre">Download on the</span>
+                <span class="store-badge-name">App Store</span>
+              </div>
+            </a>
+            <a href="#" class="store-badge" aria-label="Get it on Google Play">
+              <span class="store-badge-icon" aria-hidden="true">
+                <svg width="18" height="20" viewBox="0 0 512 512" fill="currentColor"><path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l2.7 1.5 247.2-247v-5.8L47 0zm425.6 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c17.4-9.7 17.4-25.8 0-35.3l-1.2-.5zM57.7 512l247.2-247-65.7-64.5L57.7 512z"/></svg>
+              </span>
+              <div class="store-badge-text">
+                <span class="store-badge-pre">Get it on</span>
+                <span class="store-badge-name">Google Play</span>
+              </div>
+            </a>
+          </div>
           <p class="cta-contact">Need an activation code? <a href="mailto:hello@resolara.ai">Contact us</a></p>
         </div>
       </div>
@@ -1594,34 +883,35 @@
 
   </main>
 
-  <!-- ============================================================
-       FOOTER
-  ============================================================ -->
+  <!-- FOOTER -->
   <footer class="site-footer" aria-label="Site footer">
     <div class="container">
       <div class="footer-inner">
-
         <div>
-          <div class="footer-logo">
-            <img src="assets/images/SMALL-Resolara_V5.png" alt="Resolara" width="160" height="43" />
-          </div>
+          <img src="assets/images/SMALL-Resolara_V5.png" alt="Resolara" class="footer-logo" />
           <p class="footer-tagline">Clinical visualization for licensed healthcare professionals.</p>
           <p class="footer-disclaimer">Resolara is an educational communication tool. Outputs are anatomical illustrations for practitioner use only — not diagnostic software. All clinical judgment remains with the healthcare professional.</p>
         </div>
-
-        <nav class="footer-links" aria-label="Footer navigation">
-          <a href="#features">Features</a>
-          <a href="#use-cases">Use cases</a>
-          <a href="#workflow">How it works</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#download">Download</a>
-          <a href="mailto:hello@resolara.ai">Contact</a>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Use</a>
-        </nav>
-
+        <div>
+          <p class="footer-col-title">Product</p>
+          <nav class="footer-links" aria-label="Product links">
+            <a href="#features">Features</a>
+            <a href="#accuracy">Accuracy</a>
+            <a href="#use-cases">Use cases</a>
+            <a href="#workflow">How it works</a>
+            <a href="#download">Download</a>
+          </nav>
+        </div>
+        <div>
+          <p class="footer-col-title">Company</p>
+          <nav class="footer-links" aria-label="Company links">
+            <a href="#privacy">Privacy &amp; security</a>
+            <a href="mailto:hello@resolara.ai">Contact</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Use</a>
+          </nav>
+        </div>
       </div>
-
       <div class="footer-copy">
         <p>&copy; 2026 Resolara. All rights reserved.</p>
         <p>For licensed healthcare professionals only.</p>
@@ -1629,5 +919,12 @@
     </div>
   </footer>
 
+  <script>
+    // Nav scroll effect
+    const nav = document.getElementById('nav');
+    const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  </script>
 </body>
 </html>

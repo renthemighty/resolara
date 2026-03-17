@@ -36,10 +36,12 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   _ReviewState _state = const _Loading();
+  late List<Finding> _editableFindings;
 
   @override
   void initState() {
     super.initState();
+    _editableFindings = List.of(widget.findings);
     _loadImage();
   }
 
@@ -63,7 +65,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
         return;
       }
 
-      // Keep bytes in memory — no plaintext temp file on disk
       if (mounted) setState(() => _state = _Ready(response.data!));
     } catch (e) {
       if (mounted) {
@@ -83,12 +84,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final filename = 'resolara_${now.millisecondsSinceEpoch}.enc';
       final dest = File(p.join(savedDir.path, filename));
 
-      // Encrypt the image bytes before writing to disk
       await SecureFileStorage.writeEncrypted(dest, imageBytes);
 
-      // Write metadata record to local DB
       final db = await openAppDatabase();
-      final regions = widget.findings
+      final regions = _editableFindings
           .map((f) => f.bodyRegion)
           .toSet()
           .toList()
@@ -100,7 +99,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         imagePath: Value(dest.path),
         createdAt: Value(now.millisecondsSinceEpoch),
         bodyRegions: Value(regions),
-        findingCount: Value(widget.findings.length),
+        findingCount: Value(_editableFindings.length),
         retainUntil: Value(retainUntil),
       ));
 
@@ -110,7 +109,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       );
       context.go('/history');
     } catch (_) {
-      if (mounted) setState(() => _state = _Ready(imageBytes));
+      if (mounted) setState(() => _state = _Ready((_state as _Ready).imageBytes));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Save failed. Please try again.')),
@@ -129,8 +128,59 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
+  Future<void> _showDetails(Uint8List imageBytes) async {
+    final updated = await showModalBottomSheet<List<Finding>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DetailsSheet(findings: _editableFindings),
+    );
+
+    if (updated == null || !mounted) return;
+
+    final changed = _findingsChanged(updated);
+    setState(() => _editableFindings = updated);
+
+    if (!changed) return;
+
+    final regen = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Findings updated'),
+        content: const Text(
+          'The findings have been edited. Regenerate the visualization with the updated findings?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep current'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Regenerate'),
+          ),
+        ],
+      ),
+    );
+
+    if (regen == true && mounted) {
+      Navigator.of(context).pop(updated);
+    }
+  }
+
+  bool _findingsChanged(List<Finding> updated) {
+    if (updated.length != widget.findings.length) return true;
+    for (var i = 0; i < updated.length; i++) {
+      if (updated[i].text != widget.findings[i].text ||
+          updated[i].bodyRegion != widget.findings[i].bodyRegion) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _regenerate() {
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(_editableFindings);
   }
 
   @override
@@ -152,11 +202,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           _Ready(imageBytes: final bytes) => _ReadyView(
               imageBytes: bytes,
-              jobId: widget.job.jobId,
-              findings: widget.findings,
+              findings: _editableFindings,
               onApprove: () => _approve(bytes),
               onRegenerate: _regenerate,
               onShare: () => _share(bytes),
+              onDetails: () => _showDetails(bytes),
             ),
         },
       ),
@@ -192,19 +242,19 @@ class _Ready extends _ReviewState {
 
 class _ReadyView extends StatelessWidget {
   final Uint8List imageBytes;
-  final String jobId;
   final List<Finding> findings;
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
   final VoidCallback onShare;
+  final VoidCallback onDetails;
 
   const _ReadyView({
     required this.imageBytes,
-    required this.jobId,
     required this.findings,
     required this.onApprove,
     required this.onRegenerate,
     required this.onShare,
+    required this.onDetails,
   });
 
   @override
@@ -213,7 +263,6 @@ class _ReadyView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          flex: 5,
           child: GestureDetector(
             onTap: () => Navigator.of(context).push(
               PageRouteBuilder(
@@ -231,10 +280,12 @@ class _ReadyView extends StatelessWidget {
             ),
           ),
         ),
-        if (findings.isNotEmpty)
-          _FindingsLegend(findings: findings),
-        _MetaBar(jobId: jobId),
-        _ActionBar(onApprove: onApprove, onRegenerate: onRegenerate, onShare: onShare),
+        _ActionBar(
+          onApprove: onApprove,
+          onRegenerate: onRegenerate,
+          onShare: onShare,
+          onDetails: onDetails,
+        ),
       ],
     );
   }
@@ -284,110 +335,19 @@ class _FullScreenImage extends StatelessWidget {
   }
 }
 
-// ── Findings legend ───────────────────────────────────────────────────────────
-
-class _FindingsLegend extends StatelessWidget {
-  final List<Finding> findings;
-  const _FindingsLegend({required this.findings});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 180),
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(
-          top: BorderSide(color: AppTheme.sage, width: 0.5),
-          bottom: BorderSide(color: AppTheme.sage, width: 0.5),
-        ),
-      ),
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        itemCount: findings.length,
-        separatorBuilder: (_, __) => const Divider(
-            height: 12, thickness: 0.5, color: AppTheme.sage),
-        itemBuilder: (context, i) {
-          final f = findings[i];
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _circledNumber(i + 1),
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: AppTheme.gold,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      f.text.isNotEmpty ? f.text : f.bodyRegion,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    if (f.laymanTerm.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        f.laymanTerm,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _MetaBar extends StatelessWidget {
-  final String jobId;
-  const _MetaBar({required this.jobId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, size: 14, color: AppTheme.textSecondary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Generated from de-identified findings only. Not for diagnostic use.',
-              style: const TextStyle(
-                  fontSize: 11, color: AppTheme.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ── Action bar ────────────────────────────────────────────────────────────────
 
 class _ActionBar extends StatelessWidget {
   final VoidCallback onApprove;
   final VoidCallback onRegenerate;
   final VoidCallback onShare;
+  final VoidCallback onDetails;
 
   const _ActionBar({
     required this.onApprove,
     required this.onRegenerate,
     required this.onShare,
+    required this.onDetails,
   });
 
   @override
@@ -406,28 +366,229 @@ class _ActionBar extends StatelessWidget {
             icon: const Icon(Icons.check_circle_outline),
             label: const Text('Approve & Save'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onRegenerate,
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh, size: 18),
                   label: const Text('Regenerate'),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onShare,
-                  icon: const Icon(Icons.share_outlined),
+                  icon: const Icon(Icons.share_outlined, size: 18),
                   label: const Text('Share'),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: onDetails,
+            icon: const Icon(Icons.list_alt_outlined, size: 18),
+            label: const Text('View / Edit Findings'),
+          ),
         ],
       ),
+    );
+  }
+}
+
+// ── Details bottom sheet ──────────────────────────────────────────────────────
+
+class _DetailsSheet extends StatefulWidget {
+  final List<Finding> findings;
+  const _DetailsSheet({required this.findings});
+
+  @override
+  State<_DetailsSheet> createState() => _DetailsSheetState();
+}
+
+class _DetailsSheetState extends State<_DetailsSheet> {
+  late final List<TextEditingController> _textControllers;
+  late final List<TextEditingController> _regionControllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _textControllers = widget.findings
+        .map((f) => TextEditingController(text: f.text))
+        .toList();
+    _regionControllers = widget.findings
+        .map((f) => TextEditingController(text: f.bodyRegion))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _textControllers) c.dispose();
+    for (final c in _regionControllers) c.dispose();
+    super.dispose();
+  }
+
+  List<Finding> _buildUpdated() {
+    return List.generate(widget.findings.length, (i) {
+      return widget.findings[i].copyWith(
+        text: _textControllers[i].text.trim(),
+        bodyRegion: _regionControllers[i].text.trim(),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.sage.withAlpha(100),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.list_alt_outlined,
+                        size: 20, color: AppTheme.accent),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Findings',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close,
+                          size: 20, color: AppTheme.textSecondary),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppTheme.sage),
+              // Findings list
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 12),
+                  itemCount: widget.findings.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 24, color: AppTheme.sage),
+                  itemBuilder: (context, i) => _FindingEditor(
+                    number: i + 1,
+                    textController: _textControllers[i],
+                    regionController: _regionControllers[i],
+                  ),
+                ),
+              ),
+              // Save button
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 20),
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_buildUpdated()),
+                  icon: const Icon(Icons.check_outlined),
+                  label: const Text('Save Findings'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Single finding editor row ─────────────────────────────────────────────────
+
+class _FindingEditor extends StatelessWidget {
+  final int number;
+  final TextEditingController textController;
+  final TextEditingController regionController;
+
+  const _FindingEditor({
+    required this.number,
+    required this.textController,
+    required this.regionController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              _circledNumber(number),
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppTheme.gold,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: regionController,
+                style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+                decoration: const InputDecoration(
+                  labelText: 'Body region',
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: textController,
+          maxLines: null,
+          style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w400),
+          decoration: const InputDecoration(
+            labelText: 'Finding',
+            alignLabelWithHint: true,
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+      ],
     );
   }
 }

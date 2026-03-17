@@ -17,17 +17,19 @@ class GenerateScreen extends StatefulWidget {
 class _GenerateScreenState extends State<GenerateScreen> {
   final _service = GenerationService();
   _GenState _state = const _Submitting();
+  late List<Finding> _currentFindings;
 
   @override
   void initState() {
     super.initState();
+    _currentFindings = List.of(widget.findings);
     _run();
   }
 
   Future<void> _run() async {
     setState(() => _state = const _Submitting());
     try {
-      final jobId = await _service.submitGeneration(widget.findings);
+      final jobId = await _service.submitGeneration(_currentFindings);
       setState(() => _state = const _Processing());
 
       await for (final job in _service.pollJob(jobId)) {
@@ -38,14 +40,19 @@ class _GenerateScreenState extends State<GenerateScreen> {
         }
         if (job.status == GenerationJobStatus.completed) {
           if (!mounted) return;
-          await Navigator.of(context).push(
+          final updated = await Navigator.of(context).push<List<Finding>>(
             MaterialPageRoute(
               builder: (_) => ReviewScreen(
                 job: job,
-                findings: widget.findings,
+                findings: _currentFindings,
               ),
             ),
           );
+          // User edited findings and chose to regenerate
+          if (updated != null && mounted) {
+            _currentFindings = updated;
+            _run();
+          }
           return;
         }
       }

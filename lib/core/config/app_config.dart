@@ -10,7 +10,7 @@ class AppConfig {
   // Compile-time override: flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8099
   static const String _compiledApiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://resolara.ai/api',
+    defaultValue: 'https://resolara.ai/api',
   );
 
   // Runtime override file: <documents>/resolara_server.txt

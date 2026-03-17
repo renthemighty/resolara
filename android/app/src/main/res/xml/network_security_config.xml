@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TEMPORARY: allow HTTP while resolara.ai SSL cert is being configured. Remove once HTTPS is live. -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">ORIGIN_IP_REDACTED</domain>
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">resolara.ai</domain>
     </domain-config>
 </network-security-config>

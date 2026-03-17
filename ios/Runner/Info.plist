@@ -45,26 +45,7 @@
 	<string>Resolara needs camera access to capture medical report images.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Resolara needs photo library access to import medical report images.</string>
-	<!-- TEMPORARY: allow HTTP while resolara.ai SSL cert is being configured. Remove once HTTPS is live. -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>ORIGIN_IP_REDACTED</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-			<key>resolara.ai</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
+<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>

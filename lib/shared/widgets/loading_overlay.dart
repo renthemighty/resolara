@@ -9,28 +9,33 @@ class LoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black54,
+      color: AppTheme.forestTeal.withAlpha(210),
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: AppTheme.primary),
-              if (message != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  message!,
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  textAlign: TextAlign.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: AppTheme.gold.withAlpha(200),
+              ),
+            ),
+            if (message != null) ...[
+              const SizedBox(height: 20),
+              Text(
+                message!,
+                style: const TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w300,
+                  color: AppTheme.sage,
+                  letterSpacing: 0.8,
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

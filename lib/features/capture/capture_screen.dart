@@ -7,6 +7,7 @@ import '../../core/models/captured_report.dart';
 import '../../core/utils/image_processor.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import 'preview_screen.dart';
+import '../reader/reader_screen.dart';
 
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
@@ -84,15 +85,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
       setState(() => _processing = false);
 
+      final report = CapturedReport(
+        file: processed,
+        capturedAt: DateTime.now(),
+        source: source,
+      );
+
+      // PDFs can't be previewed as an image — go straight to ReaderScreen
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PreviewScreen(
-            report: CapturedReport(
-              file: processed,
-              capturedAt: DateTime.now(),
-              source: source,
-            ),
-          ),
+          builder: (_) => report.isPdf
+              ? ReaderScreen(report: report)
+              : PreviewScreen(report: report),
         ),
       );
     } catch (e) {

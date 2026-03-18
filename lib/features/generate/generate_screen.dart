@@ -35,6 +35,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
   late List<Finding> _currentFindings;
   late SessionService _sessions;
   String? _sessionId;
+  int _runCount = 0;
 
   @override
   void initState() {
@@ -51,13 +52,14 @@ class _GenerateScreenState extends State<GenerateScreen> {
       // Resuming — skip submission, go straight to polling
       _sessionId = widget.resumeSessionId;
       setState(() => _state = const _Processing());
-      _pollJob(widget.resumeVizJobId!);
+      _pollJob(widget.resumeVizJobId!, _runCount);
     } else {
       _run();
     }
   }
 
   Future<void> _run() async {
+    final runId = _runCount;
     setState(() => _state = const _Submitting());
     try {
       // Create local session record
@@ -67,25 +69,29 @@ class _GenerateScreenState extends State<GenerateScreen> {
         tokensOut: widget.extractionTokensOut,
       );
 
+      if (runId != _runCount) return;
+
       final jobId = await _service.submitGeneration(_currentFindings);
       await _sessions.setVizJobId(_sessionId!, jobId);
 
+      if (runId != _runCount) return;
+
       setState(() => _state = const _Processing());
-      _pollJob(jobId);
+      _pollJob(jobId, runId);
     } on GenerationServiceException catch (e) {
       if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
-      if (mounted) setState(() => _state = _Failed(e.message));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } catch (e) {
       final msg = 'An unexpected error occurred: $e';
       if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
-      if (mounted) setState(() => _state = _Failed(msg));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(msg));
     }
   }
 
-  Future<void> _pollJob(String jobId) async {
+  Future<void> _pollJob(String jobId, int runId) async {
     try {
       await for (final job in _service.pollJob(jobId)) {
-        if (!mounted) return;
+        if (!mounted || runId != _runCount) return;
         if (job.status == GenerationJobStatus.failed) {
           final msg = job.error ?? 'Generation failed.';
           if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
@@ -96,7 +102,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
           if (_sessionId != null && job.imageUrl != null) {
             await _sessions.completeSession(_sessionId!, imageUrl: job.imageUrl!);
           }
-          if (!mounted) return;
+          if (!mounted || runId != _runCount) return;
           final updated = await Navigator.of(context).push<List<Finding>>(
             MaterialPageRoute(
               builder: (_) => ReviewScreen(
@@ -114,12 +120,21 @@ class _GenerateScreenState extends State<GenerateScreen> {
       }
     } on GenerationServiceException catch (e) {
       if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
-      if (mounted) setState(() => _state = _Failed(e.message));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } catch (e) {
       final msg = 'An unexpected error occurred: $e';
       if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
-      if (mounted) setState(() => _state = _Failed(msg));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(msg));
     }
+  }
+
+  void _stop() {
+    if (_sessionId != null) {
+      _sessions.failSession(_sessionId!, 'Stopped by user');
+      _sessionId = null;
+    }
+    _runCount++;
+    _run();
   }
 
   @override
@@ -135,7 +150,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
               icon: const Icon(Icons.home_outlined),
               tooltip: 'Home',
               onPressed: () {
-                // Pop back through the Navigator stack to the shell
                 Navigator.of(context).popUntil((r) => r.isFirst);
               },
             ),
@@ -145,8 +159,8 @@ class _GenerateScreenState extends State<GenerateScreen> {
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: switch (_state) {
-              _Submitting() => const _SubmittingView(),
-              _Processing() => const _ProcessingView(),
+              _Submitting() => _SubmittingView(onStop: _stop),
+              _Processing() => _ProcessingView(onStop: _stop),
               _Failed(message: final msg) => _FailedView(
                   message: msg,
                   onRetry: _run,
@@ -173,60 +187,68 @@ class _Failed extends _GenState {
 // ── Views ─────────────────────────────────────────────────────────────────────
 
 class _SubmittingView extends StatelessWidget {
-  const _SubmittingView();
+  final VoidCallback onStop;
+  const _SubmittingView({required this.onStop});
+
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.send_outlined, size: 64, color: AppTheme.accent),
-        SizedBox(height: 24),
-        Text('Creating structure…',
+        const Icon(Icons.send_outlined, size: 64, color: AppTheme.accent),
+        const SizedBox(height: 24),
+        const Text('Creating structure…',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        SizedBox(height: 24),
-        LinearProgressIndicator(
+        const SizedBox(height: 24),
+        const LinearProgressIndicator(
           backgroundColor: Color(0x1AB7A46B),
           color: AppTheme.accent,
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        SizedBox(height: 32),
-        _PrivacyNote(),
+        const SizedBox(height: 32),
+        const _PrivacyNote(),
+        const SizedBox(height: 24),
+        _StopButton(onStop: onStop),
       ],
     );
   }
 }
 
 class _ProcessingView extends StatelessWidget {
-  const _ProcessingView();
+  final VoidCallback onStop;
+  const _ProcessingView({required this.onStop});
+
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.auto_awesome_outlined, size: 64, color: AppTheme.accent),
-        SizedBox(height: 24),
-        Text('Generating visualization…',
+        const Icon(Icons.auto_awesome_outlined, size: 64, color: AppTheme.accent),
+        const SizedBox(height: 24),
+        const Text('Generating visualization…',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Creating an anatomical illustration based on the confirmed findings.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary),
         ),
-        SizedBox(height: 32),
-        LinearProgressIndicator(
+        const SizedBox(height: 32),
+        const LinearProgressIndicator(
           backgroundColor: Color(0x1AB7A46B),
           color: AppTheme.accent,
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        SizedBox(height: 32),
-        _PrivacyNote(),
+        const SizedBox(height: 32),
+        const _PrivacyNote(),
+        const SizedBox(height: 24),
+        _StopButton(onStop: onStop),
       ],
     );
   }
@@ -370,6 +392,25 @@ class _PrivacyNote extends StatelessWidget {
           style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
       ],
+    );
+  }
+}
+
+class _StopButton extends StatelessWidget {
+  final VoidCallback onStop;
+  const _StopButton({required this.onStop});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onStop,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppTheme.error,
+        side: const BorderSide(color: AppTheme.error),
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Text('Stop & Restart'),
     );
   }
 }

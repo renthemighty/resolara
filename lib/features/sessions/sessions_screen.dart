@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
+import '../../core/api/api_client.dart';
 import '../../core/services/session_service.dart';
 import '../../core/storage/app_database.dart';
 import '../generate/generate_screen.dart';
@@ -353,8 +356,6 @@ class _TotalsCard extends StatelessWidget {
         sessions.fold<int>(0, (sum, s) => sum + s.tokensIn);
     final totalTokensOut =
         sessions.fold<int>(0, (sum, s) => sum + s.tokensOut);
-    final totalCost =
-        sessions.fold<double>(0, (sum, s) => sum + SessionService.estimateCost(s));
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -398,17 +399,7 @@ class _TotalsCard extends StatelessWidget {
                 label: 'Output tokens',
                 value: _fmtTokens(totalTokensOut),
               ),
-              _AnalyticsTile(
-                label: 'Est. cost',
-                value: '\$${totalCost.toStringAsFixed(3)}',
-                highlight: true,
-              ),
             ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Cost estimate: Claude Sonnet \$3/M in, \$15/M out · gpt-image-1 \$0.04/image',
-            style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -416,7 +407,6 @@ class _TotalsCard extends StatelessWidget {
   }
 
   String _fmtTokens(int n) {
-    if (n == 0) return '—';
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
     return '$n';
@@ -482,12 +472,44 @@ class _Dot extends StatelessWidget {
 
 // ── Session detail bottom sheet ───────────────────────────────────────────────
 
-class _SessionDetailSheet extends StatelessWidget {
+class _SessionDetailSheet extends StatefulWidget {
   final Session session;
   const _SessionDetailSheet({required this.session});
 
   @override
+  State<_SessionDetailSheet> createState() => _SessionDetailSheetState();
+}
+
+class _SessionDetailSheetState extends State<_SessionDetailSheet> {
+  Uint8List? _imageBytes;
+  bool _imageLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.session.status == 'completed' && widget.session.imageUrl != null) {
+      _loadImage(widget.session.imageUrl!);
+    }
+  }
+
+  Future<void> _loadImage(String url) async {
+    setState(() => _imageLoading = true);
+    try {
+      final response = await ApiClient.instance.dio.get<Uint8List>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (mounted && response.data != null) {
+        setState(() { _imageBytes = response.data; _imageLoading = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _imageLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     final findings = session.findingsJson != null
         ? SessionService.decodeFindings(session.findingsJson!)
         : <dynamic>[];
@@ -495,7 +517,6 @@ class _SessionDetailSheet extends StatelessWidget {
         ? session.bodyRegions.split(',').map((s) => s.trim()).toList()
         : <String>[];
     final date = _formatDate(session.startedAt);
-    final cost = SessionService.formatCost(session);
     final tokens = SessionService.formatTokens(session);
 
     return DraggableScrollableSheet(
@@ -554,18 +575,30 @@ class _SessionDetailSheet extends StatelessWidget {
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                   children: [
+                    // Generated image
+                    if (_imageLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: CircularProgressIndicator(color: AppTheme.accent),
+                        ),
+                      )
+                    else if (_imageBytes != null) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(_imageBytes!, fit: BoxFit.contain),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     // Meta row
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _InfoChip(label: date),
-                        const SizedBox(width: 8),
                         _InfoChip(label: '${session.findingCount} findings'),
-                        if (session.tokensIn > 0 || session.tokensOut > 0) ...[
-                          const SizedBox(width: 8),
-                          _InfoChip(label: tokens, highlight: false),
-                          const SizedBox(width: 8),
-                          _InfoChip(label: cost, highlight: true),
-                        ],
+                        if (session.tokensIn > 0 || session.tokensOut > 0)
+                          _InfoChip(label: tokens),
                       ],
                     ),
                     if (session.errorMessage != null) ...[
@@ -665,7 +698,7 @@ class _SessionDetailSheet extends StatelessWidget {
 
   String _formatDate(int ms) {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
-    final months = const [
+    const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];

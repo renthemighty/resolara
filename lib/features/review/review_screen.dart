@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart' show Share, XFile;
+import '../../app/review_mode.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/extraction_result.dart';
@@ -35,7 +36,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
   void initState() {
     super.initState();
     _editableFindings = List.of(widget.findings);
+    reviewModeNotifier.value = true;
+    onDetailsTabTapped = _openDetailsSheet;
     _loadImage();
+  }
+
+  @override
+  void dispose() {
+    reviewModeNotifier.value = false;
+    onDetailsTabTapped = null;
+    super.dispose();
   }
 
   Future<void> _loadImage() async {
@@ -121,7 +131,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  Future<void> _showDetails(Uint8List imageBytes) async {
+  void _openDetailsSheet() {
+    if (_state is _Ready) {
+      _showDetailsSheet();
+    }
+  }
+
+  Future<void> _showDetailsSheet() async {
     final updated = await showModalBottomSheet<List<Finding>>(
       context: context,
       isScrollControlled: true,
@@ -208,7 +224,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               onApprove: () => _approve(bytes),
               onRegenerate: _regenerate,
               onShare: () => _share(bytes),
-              onDetails: () => _showDetails(bytes),
+              onDetails: _showDetailsSheet,
             ),
         },
       ),
@@ -354,15 +370,15 @@ class _ActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final secondaryColor = isDark ? AppTheme.gold : AppTheme.primary;
+    // Action bar always has AppTheme.surface (dark) background — always use gold
+    const buttonColor = AppTheme.gold;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppTheme.surface,
-        border: const Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
+        border: Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -377,12 +393,12 @@ class _ActionBar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onRegenerate,
-                  icon: Icon(Icons.refresh, size: 18, color: secondaryColor),
-                  label: Text('Regenerate',
-                      style: TextStyle(color: secondaryColor)),
+                  icon: const Icon(Icons.refresh, size: 18, color: buttonColor),
+                  label: const Text('Regenerate',
+                      style: TextStyle(color: buttonColor)),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: secondaryColor, width: 1.5),
-                    foregroundColor: secondaryColor,
+                    side: const BorderSide(color: buttonColor, width: 1.5),
+                    foregroundColor: buttonColor,
                   ),
                 ),
               ),
@@ -390,13 +406,13 @@ class _ActionBar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onShare,
-                  icon: Icon(Icons.share_outlined,
-                      size: 18, color: secondaryColor),
-                  label: Text('Share',
-                      style: TextStyle(color: secondaryColor)),
+                  icon: const Icon(Icons.share_outlined,
+                      size: 18, color: buttonColor),
+                  label: const Text('Share',
+                      style: TextStyle(color: buttonColor)),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: secondaryColor, width: 1.5),
-                    foregroundColor: secondaryColor,
+                    side: const BorderSide(color: buttonColor, width: 1.5),
+                    foregroundColor: buttonColor,
                   ),
                 ),
               ),
@@ -405,13 +421,13 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: onDetails,
-            icon: Icon(Icons.list_alt_outlined,
-                size: 18, color: secondaryColor),
-            label: Text('View / Edit Findings',
-                style: TextStyle(color: secondaryColor)),
+            icon: const Icon(Icons.list_alt_outlined,
+                size: 18, color: buttonColor),
+            label: const Text('View / Edit Findings',
+                style: TextStyle(color: buttonColor)),
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: secondaryColor.withAlpha(120), width: 1),
-              foregroundColor: secondaryColor,
+              side: BorderSide(color: buttonColor.withAlpha(120), width: 1),
+              foregroundColor: buttonColor,
             ),
           ),
         ],
@@ -477,7 +493,6 @@ class _DetailsSheetState extends State<_DetailsSheet> {
           ),
           child: Column(
             children: [
-              // Handle
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Container(
@@ -489,7 +504,6 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                   ),
                 ),
               ),
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Row(
@@ -516,7 +530,6 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                 ),
               ),
               const Divider(height: 1, color: AppTheme.sage),
-              // Findings list
               Expanded(
                 child: ListView.separated(
                   controller: scrollController,
@@ -531,7 +544,6 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                   ),
                 ),
               ),
-              // Save button
               Padding(
                 padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 24),
                 child: ElevatedButton.icon(
@@ -564,10 +576,16 @@ class _FindingEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Input fields always have a light fill — use forestTeal for readability
+    const inputTextStyle = TextStyle(
+      color: AppTheme.forestTeal,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Finding number badge
         Row(
           children: [
             Container(
@@ -601,34 +619,24 @@ class _FindingEditor extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        // Body region field
         TextField(
           controller: regionController,
-          style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500),
+          style: inputTextStyle,
           decoration: const InputDecoration(
             labelText: 'Body region',
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
         const SizedBox(height: 12),
-        // Finding text field
         TextField(
           controller: textController,
           maxLines: null,
           minLines: 3,
-          style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w400),
+          style: inputTextStyle.copyWith(fontWeight: FontWeight.w400),
           decoration: const InputDecoration(
             labelText: 'Finding description',
             alignLabelWithHint: true,
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
       ],

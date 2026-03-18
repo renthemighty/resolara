@@ -132,12 +132,6 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Image metadata is removed before processing.\nAll identifying information is stripped before analysis.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textSecondary),
-                ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Container(

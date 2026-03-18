@@ -126,7 +126,7 @@ class AppTheme {
           iconTheme: WidgetStateProperty.resolveWith((states) {
             final selected = states.contains(WidgetState.selected);
             return IconThemeData(
-              color: selected ? gold : forestTeal,
+              color: selected ? gold : warmStone,
               size: 24,
             );
           }),

@@ -23,6 +23,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   final _localOcr = LocalOcrService();
 
   _ReaderState _state = const _ReadingReport();
+  int _runCount = 0;
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Future<void> _run() async {
+    final runId = _runCount;
     setState(() => _state = const _ReadingReport());
 
     try {
@@ -40,7 +42,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         rawText = await _localOcr.extractTextFromPdf(
           widget.report.file,
           onPageProgress: (page, total) {
-            if (mounted) {
+            if (mounted && runId == _runCount) {
               setState(() => _state = _ReadingReport(page: page, totalPages: total));
             }
           },
@@ -49,7 +51,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         rawText = await _localOcr.extractTextFromImage(widget.report.file);
       }
 
-      if (!mounted) return;
+      if (!mounted || runId != _runCount) return;
 
       if (rawText.trim().isEmpty) {
         setState(() => _state = const _Failed(
@@ -71,13 +73,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
         pageCount: 1,
       );
 
-      if (!mounted) return;
+      if (!mounted || runId != _runCount) return;
 
       // ── Phase 4: Poll for findings ─────────────────────────────────────
       setState(() => _state = const _Polling());
 
       await for (final job in _ocr.pollJob(jobId)) {
-        if (!mounted) return;
+        if (!mounted || runId != _runCount) return;
         if (job.status == OcrJobStatus.failed) {
           setState(() => _state = _Failed(job.error ?? 'Processing failed.'));
           return;
@@ -95,14 +97,19 @@ class _ReaderScreenState extends State<ReaderScreen> {
         }
       }
     } on LocalOcrException catch (e) {
-      if (mounted) setState(() => _state = _Failed(e.message));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } on OcrServiceException catch (e) {
-      if (mounted) setState(() => _state = _Failed(e.message));
+      if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } catch (_) {
-      if (mounted) {
+      if (mounted && runId == _runCount) {
         setState(() => _state = const _Failed('An unexpected error occurred.'));
       }
     }
+  }
+
+  void _stop() {
+    _runCount++;
+    _run();
   }
 
   @override
@@ -119,9 +126,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
             padding: const EdgeInsets.all(32),
             child: switch (_state) {
               _ReadingReport(page: final p, totalPages: final t) =>
-                _ReadingReportView(page: p, totalPages: t),
-              _Submitting() => const _SubmittingView(),
-              _Polling() => const _PollingView(),
+                _ReadingReportView(page: p, totalPages: t, onStop: _stop),
+              _Submitting() => _SubmittingView(onStop: _stop),
+              _Polling() => _PollingView(onStop: _stop),
               _Failed(message: final msg) => _FailedView(
                   message: msg,
                   onRetry: _run,
@@ -165,8 +172,9 @@ class _Failed extends _ReaderState {
 class _ReadingReportView extends StatelessWidget {
   final int? page;
   final int? totalPages;
+  final VoidCallback onStop;
 
-  const _ReadingReportView({this.page, this.totalPages});
+  const _ReadingReportView({this.page, this.totalPages, required this.onStop});
 
   @override
   Widget build(BuildContext context) {
@@ -200,78 +208,86 @@ class _ReadingReportView extends StatelessWidget {
         ),
         const SizedBox(height: 32),
         const _PrivacyNote(),
+        const SizedBox(height: 24),
+        _StopButton(onStop: onStop),
       ],
     );
   }
 }
 
 class _SubmittingView extends StatelessWidget {
-  const _SubmittingView();
+  final VoidCallback onStop;
+  const _SubmittingView({required this.onStop});
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.biotech_outlined, size: 64, color: AppTheme.primary),
-        SizedBox(height: 24),
-        Text(
+        const Icon(Icons.biotech_outlined, size: 64, color: AppTheme.primary),
+        const SizedBox(height: 24),
+        const Text(
           'Extracting findings…',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
-        SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Identifying clinically relevant information.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary),
         ),
-        SizedBox(height: 24),
-        LinearProgressIndicator(
+        const SizedBox(height: 24),
+        const LinearProgressIndicator(
           backgroundColor: Color(0x1A1A3A5C),
           color: AppTheme.primary,
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        SizedBox(height: 32),
-        _PrivacyNote(),
+        const SizedBox(height: 32),
+        const _PrivacyNote(),
+        const SizedBox(height: 24),
+        _StopButton(onStop: onStop),
       ],
     );
   }
 }
 
 class _PollingView extends StatelessWidget {
-  const _PollingView();
+  final VoidCallback onStop;
+  const _PollingView({required this.onStop});
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.shield_outlined, size: 64, color: AppTheme.primary),
-        SizedBox(height: 24),
-        Text(
+        const Icon(Icons.shield_outlined, size: 64, color: AppTheme.primary),
+        const SizedBox(height: 24),
+        const Text(
           'Sending report text…',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
-        SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 8),
+        const Text(
           'Identifying information has been removed. Only report text is transmitted.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.textSecondary),
         ),
-        SizedBox(height: 24),
-        LinearProgressIndicator(
+        const SizedBox(height: 24),
+        const LinearProgressIndicator(
           backgroundColor: Color(0x1A1A3A5C),
           color: AppTheme.primary,
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        SizedBox(height: 32),
-        _PrivacyNote(),
+        const SizedBox(height: 32),
+        const _PrivacyNote(),
+        const SizedBox(height: 24),
+        _StopButton(onStop: onStop),
       ],
     );
   }
@@ -340,6 +356,25 @@ class _PrivacyNote extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StopButton extends StatelessWidget {
+  final VoidCallback onStop;
+  const _StopButton({required this.onStop});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onStop,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppTheme.error,
+        side: const BorderSide(color: AppTheme.error),
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Text('Stop & Restart'),
     );
   }
 }

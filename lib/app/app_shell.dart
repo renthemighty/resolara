@@ -10,7 +10,8 @@ class AppShell extends StatelessWidget {
   int _selectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/sessions')) return 1;
-    if (location.startsWith('/settings')) return 2;
+    if (location.startsWith('/history')) return 2;
+    if (location.startsWith('/settings')) return 3;
     return 0;
   }
 
@@ -38,6 +39,8 @@ class AppShell extends StatelessWidget {
             case 1:
               context.go('/sessions');
             case 2:
+              context.go('/history');
+            case 3:
               context.go('/settings');
           }
         },
@@ -51,6 +54,11 @@ class AppShell extends StatelessWidget {
             icon: Icon(Icons.auto_awesome_outlined),
             selectedIcon: Icon(Icons.auto_awesome),
             label: 'Sessions',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: 'Details',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

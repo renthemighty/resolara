@@ -56,6 +56,15 @@ class _SessionsScreenState extends State<SessionsScreen> {
     );
   }
 
+  void _viewSession(Session session) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SessionDetailSheet(session: session),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,6 +115,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     const SizedBox(height: 8),
                     ...recent.map((s) => _SessionCard(
                           session: s,
+                          onView: () => _viewSession(s),
                           onDelete: () => _deleteSession(db, s),
                         )),
                   ],
@@ -181,11 +191,13 @@ class _SectionHeader extends StatelessWidget {
 class _SessionCard extends StatelessWidget {
   final Session session;
   final VoidCallback? onResume;
+  final VoidCallback? onView;
   final VoidCallback onDelete;
 
   const _SessionCard({
     required this.session,
     this.onResume,
+    this.onView,
     required this.onDelete,
   });
 
@@ -201,7 +213,7 @@ class _SessionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: isActive && onResume != null ? onResume : null,
+        onTap: isActive ? onResume : onView,
         onLongPress: onDelete,
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -464,6 +476,232 @@ class _Dot extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 5),
       child: Text('·',
           style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+    );
+  }
+}
+
+// ── Session detail bottom sheet ───────────────────────────────────────────────
+
+class _SessionDetailSheet extends StatelessWidget {
+  final Session session;
+  const _SessionDetailSheet({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final findings = session.findingsJson != null
+        ? SessionService.decodeFindings(session.findingsJson!)
+        : <dynamic>[];
+    final regions = session.bodyRegions.isNotEmpty
+        ? session.bodyRegions.split(',').map((s) => s.trim()).toList()
+        : <String>[];
+    final date = _formatDate(session.startedAt);
+    final cost = SessionService.formatCost(session);
+    final tokens = SessionService.formatTokens(session);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.sage.withAlpha(100),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Row(
+                  children: [
+                    _StatusBadge(status: session.status),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        regions.isNotEmpty ? regions.join(' · ') : 'Session',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close,
+                          size: 20, color: AppTheme.textSecondary),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppTheme.sage),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  children: [
+                    // Meta row
+                    Row(
+                      children: [
+                        _InfoChip(label: date),
+                        const SizedBox(width: 8),
+                        _InfoChip(label: '${session.findingCount} findings'),
+                        if (session.tokensIn > 0 || session.tokensOut > 0) ...[
+                          const SizedBox(width: 8),
+                          _InfoChip(label: tokens, highlight: false),
+                          const SizedBox(width: 8),
+                          _InfoChip(label: cost, highlight: true),
+                        ],
+                      ],
+                    ),
+                    if (session.errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.error.withAlpha(60)),
+                        ),
+                        child: Text(
+                          session.errorMessage!,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppTheme.error),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    if (findings.isNotEmpty) ...[
+                      const Text(
+                        'FINDINGS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...findings.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final f = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                margin: const EdgeInsets.only(top: 2, right: 10),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.gold.withAlpha(30),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: AppTheme.gold.withAlpha(80)),
+                                ),
+                                child: Text(
+                                  '${i + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.gold,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      f.bodyRegion.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.textSecondary,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      f.text,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDate(int ms) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final months = const [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${months[d.month]} ${d.year}  '
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final String label;
+  final bool highlight;
+  const _InfoChip({required this.label, this.highlight = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: highlight
+            ? AppTheme.gold.withAlpha(25)
+            : AppTheme.sage.withAlpha(30),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: highlight
+              ? AppTheme.gold.withAlpha(80)
+              : AppTheme.sage.withAlpha(60),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: highlight ? AppTheme.gold : AppTheme.textSecondary,
+        ),
+      ),
     );
   }
 }

@@ -16,13 +16,6 @@ import '../../core/storage/secure_file_storage.dart';
 import '../../shared/widgets/error_view.dart';
 import '../../shared/widgets/loading_overlay.dart';
 
-// Unicode circled numbers ①–⑳
-String _circledNumber(int n) {
-  const circles = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
-                   '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
-  if (n >= 1 && n <= circles.length) return circles[n - 1];
-  return '$n.';
-}
 
 class ReviewScreen extends StatefulWidget {
   final GenerationJob job;
@@ -361,12 +354,15 @@ class _ActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryColor = isDark ? AppTheme.gold : AppTheme.primary;
+
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
+        border: const Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -381,25 +377,42 @@ class _ActionBar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onRegenerate,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Regenerate'),
+                  icon: Icon(Icons.refresh, size: 18, color: secondaryColor),
+                  label: Text('Regenerate',
+                      style: TextStyle(color: secondaryColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: secondaryColor, width: 1.5),
+                    foregroundColor: secondaryColor,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onShare,
-                  icon: const Icon(Icons.share_outlined, size: 18),
-                  label: const Text('Share'),
+                  icon: Icon(Icons.share_outlined,
+                      size: 18, color: secondaryColor),
+                  label: Text('Share',
+                      style: TextStyle(color: secondaryColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: secondaryColor, width: 1.5),
+                    foregroundColor: secondaryColor,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          TextButton.icon(
+          OutlinedButton.icon(
             onPressed: onDetails,
-            icon: const Icon(Icons.list_alt_outlined, size: 18),
-            label: const Text('View / Edit Findings'),
+            icon: Icon(Icons.list_alt_outlined,
+                size: 18, color: secondaryColor),
+            label: Text('View / Edit Findings',
+                style: TextStyle(color: secondaryColor)),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: secondaryColor.withAlpha(120), width: 1),
+              foregroundColor: secondaryColor,
+            ),
           ),
         ],
       ),
@@ -452,9 +465,9 @@ class _DetailsSheetState extends State<_DetailsSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
+      initialChildSize: 0.92,
+      minChildSize: 0.5,
+      maxChildSize: 0.97,
       expand: false,
       builder: (context, scrollController) {
         return Container(
@@ -507,10 +520,10 @@ class _DetailsSheetState extends State<_DetailsSheet> {
               Expanded(
                 child: ListView.separated(
                   controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 12),
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
                   itemCount: widget.findings.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 24, color: AppTheme.sage),
+                      const Divider(height: 32, color: AppTheme.sage),
                   itemBuilder: (context, i) => _FindingEditor(
                     number: i + 1,
                     textController: _textControllers[i],
@@ -520,7 +533,7 @@ class _DetailsSheetState extends State<_DetailsSheet> {
               ),
               // Save button
               Padding(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 20),
+                padding: EdgeInsets.fromLTRB(20, 8, 20, bottomInset + 24),
                 child: ElevatedButton.icon(
                   onPressed: () =>
                       Navigator.of(context).pop(_buildUpdated()),
@@ -554,47 +567,68 @@ class _FindingEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Finding number badge
         Row(
           children: [
-            Text(
-              _circledNumber(number),
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppTheme.gold,
-                fontWeight: FontWeight.w700,
+            Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.gold.withAlpha(30),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.gold.withAlpha(100)),
+              ),
+              child: Text(
+                '$number',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.gold,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: regionController,
-                style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500),
-                decoration: const InputDecoration(
-                  labelText: 'Body region',
-                  isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
+            const Text(
+              'Finding',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.4,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        // Body region field
+        TextField(
+          controller: regionController,
+          style: const TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500),
+          decoration: const InputDecoration(
+            labelText: 'Body region',
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Finding text field
         TextField(
           controller: textController,
           maxLines: null,
+          minLines: 3,
           style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w400),
           decoration: const InputDecoration(
-            labelText: 'Finding',
+            labelText: 'Finding description',
             alignLabelWithHint: true,
             contentPadding:
-                EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
         ),
       ],

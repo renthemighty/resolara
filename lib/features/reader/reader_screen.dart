@@ -83,7 +83,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
           return;
         }
         if (job.status == OcrJobStatus.completed) {
-          final extraction = ExtractionResult.fromJson(job.result ?? {});
+          final extraction = ExtractionResult.fromJson(job.result ?? {})
+              .withTokens(job.tokensIn, job.tokensOut);
           await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => ExtractScreen(extraction: extraction),

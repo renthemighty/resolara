@@ -191,6 +191,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
         appBar: AppBar(
           title: const Text('Review Visualization'),
           automaticallyImplyLeading: _state is! _Saving,
+          actions: [
+            if (_state is! _Saving)
+              IconButton(
+                icon: const Icon(Icons.home_outlined),
+                tooltip: 'Home',
+                onPressed: () =>
+                    Navigator.of(context).popUntil((r) => r.isFirst),
+              ),
+          ],
         ),
         body: switch (_state) {
           _Loading() => const Center(
@@ -267,7 +276,7 @@ class _ReadyView extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               PageRouteBuilder(
                 opaque: false,
-                pageBuilder: (_, __, ___) =>
+                pageBuilder: (context, animation, secondary) =>
                     _FullScreenImage(imageBytes: imageBytes),
               ),
             ),
@@ -425,8 +434,8 @@ class _DetailsSheetState extends State<_DetailsSheet> {
 
   @override
   void dispose() {
-    for (final c in _textControllers) c.dispose();
-    for (final c in _regionControllers) c.dispose();
+    for (final c in _textControllers) { c.dispose(); }
+    for (final c in _regionControllers) { c.dispose(); }
     super.dispose();
   }
 
@@ -500,7 +509,7 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                   controller: scrollController,
                   padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 12),
                   itemCount: widget.findings.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (context, index) =>
                       const Divider(height: 24, color: AppTheme.sage),
                   itemBuilder: (context, i) => _FindingEditor(
                     number: i + 1,

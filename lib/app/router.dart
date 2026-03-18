@@ -3,6 +3,7 @@ import '../core/auth/auth_service.dart';
 import '../features/activation/activation_screen.dart';
 import '../features/capture/capture_screen.dart';
 import '../features/history/history_screen.dart';
+import '../features/sessions/sessions_screen.dart';
 import '../features/settings/settings_screen.dart';
 import 'app_shell.dart';
 
@@ -28,6 +29,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/home',
           builder: (context, state) => const CaptureScreen(),
+        ),
+        GoRoute(
+          path: '/sessions',
+          builder: (context, state) => const SessionsScreen(),
         ),
         GoRoute(
           path: '/history',

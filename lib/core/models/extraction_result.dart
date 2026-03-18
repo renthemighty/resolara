@@ -44,11 +44,15 @@ class ExtractionResult {
   final List<Finding> findings;
   final List<String> piiDetected;
   final double overallConfidence;
+  final int tokensIn;
+  final int tokensOut;
 
   const ExtractionResult({
     required this.findings,
     required this.piiDetected,
     required this.overallConfidence,
+    this.tokensIn = 0,
+    this.tokensOut = 0,
   });
 
   factory ExtractionResult.fromJson(Map<String, dynamic> json) {
@@ -63,6 +67,14 @@ class ExtractionResult {
           (json['overall_confidence'] as num?)?.toDouble() ?? 0.0,
     );
   }
+
+  ExtractionResult withTokens(int tokensIn, int tokensOut) => ExtractionResult(
+        findings: findings,
+        piiDetected: piiDetected,
+        overallConfidence: overallConfidence,
+        tokensIn: tokensIn,
+        tokensOut: tokensOut,
+      );
 
   bool get hasPiiWarnings => piiDetected.isNotEmpty;
   bool get hasLowConfidence => findings.any((f) => f.isLowConfidence);

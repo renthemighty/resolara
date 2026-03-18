@@ -60,11 +60,15 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
 
     if (confirmed != true || !context.mounted) return;
 
+    // Delete DB record first — this always succeeds even if file is missing
     final db = await openAppDatabase();
     await db.deleteVisualization(widget.record.id);
 
-    final imageFile = File(widget.record.imagePath);
-    if (imageFile.existsSync()) imageFile.deleteSync();
+    // Delete file in background — non-blocking, won't hang UI if file is gone
+    try {
+      final f = File(widget.record.imagePath);
+      if (await f.exists()) await f.delete();
+    } catch (_) {} // silently ignore — record is already gone
 
     if (context.mounted) context.go('/history');
   }

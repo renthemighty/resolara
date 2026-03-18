@@ -3,12 +3,27 @@ import '../../app/theme/app_theme.dart';
 import '../../core/api/generation_service.dart';
 import '../../core/models/extraction_result.dart';
 import '../../core/models/generation_job.dart';
+import '../../core/services/session_service.dart';
+import '../../core/storage/app_database.dart';
 import '../review/review_screen.dart';
 
 class GenerateScreen extends StatefulWidget {
   final List<Finding> findings;
+  /// Set when resuming a cached session — skips submission, polls directly.
+  final String? resumeSessionId;
+  final String? resumeVizJobId;
+  /// Token counts from the extraction phase, stored in the session record.
+  final int extractionTokensIn;
+  final int extractionTokensOut;
 
-  const GenerateScreen({super.key, required this.findings});
+  const GenerateScreen({
+    super.key,
+    required this.findings,
+    this.resumeSessionId,
+    this.resumeVizJobId,
+    this.extractionTokensIn = 0,
+    this.extractionTokensOut = 0,
+  });
 
   @override
   State<GenerateScreen> createState() => _GenerateScreenState();
@@ -18,27 +33,69 @@ class _GenerateScreenState extends State<GenerateScreen> {
   final _service = GenerationService();
   _GenState _state = const _Submitting();
   late List<Finding> _currentFindings;
+  late SessionService _sessions;
+  String? _sessionId;
 
   @override
   void initState() {
     super.initState();
     _currentFindings = List.of(widget.findings);
-    _run();
+    _initSessions();
+  }
+
+  Future<void> _initSessions() async {
+    final db = await openAppDatabase();
+    _sessions = SessionService(db);
+
+    if (widget.resumeSessionId != null && widget.resumeVizJobId != null) {
+      // Resuming — skip submission, go straight to polling
+      _sessionId = widget.resumeSessionId;
+      setState(() => _state = const _Processing());
+      _pollJob(widget.resumeVizJobId!);
+    } else {
+      _run();
+    }
   }
 
   Future<void> _run() async {
     setState(() => _state = const _Submitting());
     try {
-      final jobId = await _service.submitGeneration(_currentFindings);
-      setState(() => _state = const _Processing());
+      // Create local session record
+      _sessionId = await _sessions.createSession(
+        findings: _currentFindings,
+        tokensIn: widget.extractionTokensIn,
+        tokensOut: widget.extractionTokensOut,
+      );
 
+      final jobId = await _service.submitGeneration(_currentFindings);
+      await _sessions.setVizJobId(_sessionId!, jobId);
+
+      setState(() => _state = const _Processing());
+      _pollJob(jobId);
+    } on GenerationServiceException catch (e) {
+      if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
+      if (mounted) setState(() => _state = _Failed(e.message));
+    } catch (e) {
+      final msg = 'An unexpected error occurred: $e';
+      if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+      if (mounted) setState(() => _state = _Failed(msg));
+    }
+  }
+
+  Future<void> _pollJob(String jobId) async {
+    try {
       await for (final job in _service.pollJob(jobId)) {
         if (!mounted) return;
         if (job.status == GenerationJobStatus.failed) {
-          setState(() => _state = _Failed(job.error ?? 'Generation failed.'));
+          final msg = job.error ?? 'Generation failed.';
+          if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+          setState(() => _state = _Failed(msg));
           return;
         }
         if (job.status == GenerationJobStatus.completed) {
+          if (_sessionId != null && job.imageUrl != null) {
+            await _sessions.completeSession(_sessionId!, imageUrl: job.imageUrl!);
+          }
           if (!mounted) return;
           final updated = await Navigator.of(context).push<List<Finding>>(
             MaterialPageRoute(
@@ -48,7 +105,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
               ),
             ),
           );
-          // User edited findings and chose to regenerate
           if (updated != null && mounted) {
             _currentFindings = updated;
             _run();
@@ -57,11 +113,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
         }
       }
     } on GenerationServiceException catch (e) {
+      if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
       if (mounted) setState(() => _state = _Failed(e.message));
     } catch (e) {
-      if (mounted) {
-        setState(() => _state = _Failed('An unexpected error occurred: $e'));
-      }
+      final msg = 'An unexpected error occurred: $e';
+      if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+      if (mounted) setState(() => _state = _Failed(msg));
     }
   }
 
@@ -73,6 +130,16 @@ class _GenerateScreenState extends State<GenerateScreen> {
         appBar: AppBar(
           title: const Text('Generating Visualization'),
           automaticallyImplyLeading: _state is _Failed,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.home_outlined),
+              tooltip: 'Home',
+              onPressed: () {
+                // Pop back through the Navigator stack to the shell
+                Navigator.of(context).popUntil((r) => r.isFirst);
+              },
+            ),
+          ],
         ),
         body: SafeArea(
           child: Padding(
@@ -95,18 +162,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
 // ── State types ───────────────────────────────────────────────────────────────
 
-sealed class _GenState {
-  const _GenState();
-}
-
-class _Submitting extends _GenState {
-  const _Submitting();
-}
-
-class _Processing extends _GenState {
-  const _Processing();
-}
-
+sealed class _GenState { const _GenState(); }
+class _Submitting extends _GenState { const _Submitting(); }
+class _Processing extends _GenState { const _Processing(); }
 class _Failed extends _GenState {
   final String message;
   const _Failed(this.message);
@@ -116,7 +174,6 @@ class _Failed extends _GenState {
 
 class _SubmittingView extends StatelessWidget {
   const _SubmittingView();
-
   @override
   Widget build(BuildContext context) {
     return const Column(
@@ -144,7 +201,6 @@ class _SubmittingView extends StatelessWidget {
 
 class _ProcessingView extends StatelessWidget {
   const _ProcessingView();
-
   @override
   Widget build(BuildContext context) {
     return const Column(
@@ -202,17 +258,17 @@ class _FailedView extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.error.withAlpha(60)),
             ),
-            child: Column(
+            child: const Column(
               children: [
-                const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
-                const SizedBox(height: 16),
-                const Text(
+                Icon(Icons.error_outline, size: 48, color: AppTheme.error),
+                SizedBox(height: 16),
+                Text(
                   'Generation failed',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   'The visualization could not be created. This is usually temporary.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
@@ -231,10 +287,11 @@ class _FailedView extends StatelessWidget {
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'What to do',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
-                ),
+                Text('What to do',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary)),
                 SizedBox(height: 10),
                 _Tip(icon: Icons.refresh, text: 'Tap Try Again — most failures resolve on the first retry.'),
                 SizedBox(height: 8),
@@ -282,7 +339,6 @@ class _Tip extends StatelessWidget {
   final IconData icon;
   final String text;
   const _Tip({required this.icon, required this.text});
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -291,10 +347,9 @@ class _Tip extends StatelessWidget {
         Icon(icon, size: 15, color: AppTheme.accent),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-          ),
+          child: Text(text,
+              style: const TextStyle(
+                  fontSize: 13, color: AppTheme.textSecondary)),
         ),
       ],
     );
@@ -303,7 +358,6 @@ class _Tip extends StatelessWidget {
 
 class _PrivacyNote extends StatelessWidget {
   const _PrivacyNote();
-
   @override
   Widget build(BuildContext context) {
     return const Row(

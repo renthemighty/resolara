@@ -51,7 +51,11 @@ class _ExtractScreenState extends State<ExtractScreen> {
     }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GenerateScreen(findings: List.unmodifiable(_findings)),
+        builder: (_) => GenerateScreen(
+          findings: List.unmodifiable(_findings),
+          extractionTokensIn: widget.extraction.tokensIn,
+          extractionTokensOut: widget.extraction.tokensOut,
+        ),
       ),
     );
   }

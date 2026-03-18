@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
@@ -50,7 +49,7 @@ class LocalOcrService {
         if (pageImage == null) continue;
 
         final tempFile = File('${tempDir.path}/resolara_ocr_page_$i.png');
-        await tempFile.writeAsBytes(pageImage.bytes as Uint8List);
+        await tempFile.writeAsBytes(pageImage.bytes);
 
         try {
           final pageText = await extractTextFromImage(tempFile);

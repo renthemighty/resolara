@@ -3,15 +3,48 @@
 class OpenAIService {
     private const IMAGE_URL = 'https://api.openai.com/v1/images/generations';
 
+    private const PROMPT_SUFFIX = "show me a 2d image of what these issues would look like, and show the affected areas in red";
+
     /**
-     * Generate an anatomical visualization from confirmed findings.
+     * Generate a visualization from structured findings.
      * Saves the image to storage and returns the local filename.
      */
-    public static function generateVisualization(array $findings): string {
-        $prompt = self::buildPrompt($findings);
+    public static function generateVisualization(array $findings, string $patientName = ''): string {
+        $lines = [];
+        foreach ($findings as $f) {
+            $region  = trim($f['body_region'] ?? '');
+            $finding = trim($f['finding']     ?? '');
+            if ($region && $finding) {
+                $lines[] = $region . ': ' . $finding;
+            } elseif ($finding) {
+                $lines[] = $finding;
+            }
+        }
+        $text = implode("\n", $lines);
+        $prompt = self::buildPrompt($text, $patientName);
+        return self::generate($prompt);
+    }
 
+    /**
+     * Generate a visualization from a free-form text description.
+     * Used by the "Describe Instead" flow.
+     */
+    public static function generateFromPrompt(string $directPrompt, string $patientName = ''): string {
+        $prompt = self::buildPrompt(trim($directPrompt), $patientName);
+        return self::generate($prompt);
+    }
+
+    private static function buildPrompt(string $text, string $patientName): string {
+        $parts = [];
+        if ($text !== '') $parts[] = $text;
+        if ($patientName !== '') $parts[] = 'Patient: ' . $patientName;
+        $parts[] = self::PROMPT_SUFFIX;
+        return implode("\n", $parts);
+    }
+
+    private static function generate(string $prompt): string {
         $payload = [
-            'model'   => DALLE_MODEL,   // gpt-image-1
+            'model'   => DALLE_MODEL,
             'prompt'  => $prompt,
             'n'       => 1,
             'size'    => '1024x1024',
@@ -20,7 +53,6 @@ class OpenAIService {
 
         $response = self::call(self::IMAGE_URL, $payload);
 
-        // gpt-image-1 returns base64 directly; dall-e-3 returns a URL
         $b64      = $response['data'][0]['b64_json'] ?? null;
         $imageUrl = $response['data'][0]['url']      ?? null;
 
@@ -43,42 +75,6 @@ class OpenAIService {
 
         file_put_contents($destPath, $imageData);
         return $filename;
-    }
-
-    private static function buildPrompt(array $findings): string {
-        // Extract unique body regions
-        $regions = array_unique(array_filter(array_map(
-            fn($f) => $f['body_region'] ?? '',
-            $findings
-        )));
-        $regionList = implode(', ', $regions) ?: 'musculoskeletal';
-
-        // Build labelled finding list — body region + short clinical detail
-        $labelLines = [];
-        foreach (array_values($findings) as $i => $f) {
-            $region = $f['body_region'] ?? '';
-            $detail = $f['finding']     ?? '';
-            $entry  = ($i + 1) . '. ' . ($region ?: 'structure');
-            if ($detail) $entry .= ': ' . substr($detail, 0, 80);
-            $labelLines[] = $entry;
-        }
-        $labelBlock = implode("\n", $labelLines);
-        $count      = count($labelLines);
-
-        return "Create a clean flat medical education illustration of the human {$regionList}.\n\n"
-             . "Style: flat 2D anatomical diagram, vector illustration aesthetic, "
-             . "white background, simple clean outlines, muted colour palette "
-             . "(light beige/tan for bone, soft skin tones), minimal shading. "
-             . "Think: clear infographic-style medical diagram, not photorealistic.\n\n"
-             . "The diagram must visually show these {$count} findings, each clearly marked:\n"
-             . "{$labelBlock}\n\n"
-             . "For each finding draw a callout line from a small filled circle marker "
-             . "to a text label placed outside the body outline. "
-             . "Use the exact label text from the list above for each callout. "
-             . "Affected areas should use subtle colour cues (soft red/pink wash for "
-             . "inflammation or swelling, dashed outline for structural changes). "
-             . "Labels should be small, legible, sans-serif. "
-             . "This is a patient-education reference illustration for licensed practitioners.";
     }
 
     private static function call(string $url, array $payload): array {

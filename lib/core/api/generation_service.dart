@@ -16,9 +16,7 @@ class GenerationService {
   final _dio = ApiClient.instance.dio;
 
   /// Submits confirmed findings to the backend for visualization.
-  /// The backend handles prompt construction and AI provider routing
-  /// (Claude or OpenAI) — the mobile never needs to know which is used.
-  Future<String> submitGeneration(List<Finding> findings) async {
+  Future<String> submitGeneration(List<Finding> findings, {String patientName = ''}) async {
     final payload = {
       'findings': findings
           .map((f) => {
@@ -27,6 +25,29 @@ class GenerationService {
                 'finding': f.text,
               })
           .toList(),
+      if (patientName.isNotEmpty) 'patient_name': patientName,
+      'device_meta': DeviceInfoService.collect(),
+    };
+
+    final response = await _dio.post('/v1/visualizations', data: payload);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw const GenerationServiceException(
+          'Failed to start visualization. Please try again.');
+    }
+
+    final jobId = response.data['job_id'] as String?;
+    if (jobId == null) {
+      throw const GenerationServiceException('Invalid response from server.');
+    }
+    return jobId;
+  }
+
+  /// Submits a free-form text/voice description directly for visualization.
+  Future<String> submitDirectPrompt(String prompt, {String patientName = ''}) async {
+    final payload = {
+      'prompt': prompt,
+      if (patientName.isNotEmpty) 'patient_name': patientName,
       'device_meta': DeviceInfoService.collect(),
     };
 

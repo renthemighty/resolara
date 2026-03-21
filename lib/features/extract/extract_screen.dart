@@ -14,11 +14,18 @@ class ExtractScreen extends StatefulWidget {
 
 class _ExtractScreenState extends State<ExtractScreen> {
   late List<Finding> _findings;
+  final _labelController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _findings = List.of(widget.extraction.findings);
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    super.dispose();
   }
 
   void _removeFinding(String id) {
@@ -53,6 +60,7 @@ class _ExtractScreenState extends State<ExtractScreen> {
       MaterialPageRoute(
         builder: (_) => GenerateScreen(
           findings: List.unmodifiable(_findings),
+          patientName: _labelController.text.trim(),
           extractionTokensIn: widget.extraction.tokensIn,
           extractionTokensOut: widget.extraction.tokensOut,
         ),
@@ -74,6 +82,7 @@ class _ExtractScreenState extends State<ExtractScreen> {
       ),
       body: Column(
         children: [
+          _PatientLabelField(controller: _labelController),
           if (hasLowConf) const _LowConfidenceBanner(),
           Expanded(
             child: _findings.isEmpty
@@ -94,6 +103,43 @@ class _ExtractScreenState extends State<ExtractScreen> {
             onConfirm: _confirm,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Patient label field ───────────────────────────────────────────────────────
+
+class _PatientLabelField extends StatelessWidget {
+  final TextEditingController controller;
+  const _PatientLabelField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppTheme.sage, width: 0.5)),
+      ),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Patient label (optional)',
+          hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+          prefixIcon: const Icon(Icons.person_outline, size: 18, color: AppTheme.textSecondary),
+          isDense: true,
+          filled: false,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppTheme.sage),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppTheme.sage.withAlpha(120)),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
       ),
     );
   }

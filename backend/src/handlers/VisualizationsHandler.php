@@ -38,29 +38,41 @@ class VisualizationsHandler {
         $device = Auth::require();
         $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $findings = $body['findings'] ?? [];
-        if (empty($findings) || !is_array($findings)) {
-            Response::error('findings array is required');
+        $patientName  = substr(strip_tags((string)($body['patient_name'] ?? '')), 0, 100);
+        $directPrompt = trim((string)($body['prompt'] ?? ''));
+
+        // Direct text/voice prompt path
+        if ($directPrompt !== '') {
+            if (strlen($directPrompt) > 2000) {
+                Response::error('Prompt too long. Maximum is 2000 characters.');
+            }
+            self::enqueue(null, $directPrompt, $patientName, $device['token']);
         }
 
+        // Findings path
+        $findings = $body['findings'] ?? [];
+        if (empty($findings) || !is_array($findings)) {
+            Response::error('Either findings or prompt is required.');
+        }
         if (count($findings) > 20) {
             Response::error('Too many findings. Maximum is 20.');
         }
-
-        // Strip any fields we don't need — keep only body_region and finding text
         $cleanFindings = array_map(fn($f) => [
             'id'          => substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($f['id'] ?? '')), 0, 32),
             'body_region' => substr(strip_tags((string)($f['body_region'] ?? '')), 0, 100),
             'finding'     => substr(strip_tags((string)($f['finding'] ?? '')), 0, 500),
         ], $findings);
 
+        self::enqueue($cleanFindings, null, $patientName, $device['token']);
+    }
+
+    private static function enqueue(?array $findings, ?string $directPrompt, string $patientName, string $deviceToken): never {
         $vizId = Auth::uuid();
         $db    = Database::get();
         $db->prepare(
             'INSERT INTO visualizations (id, device_token, status, findings_json) VALUES (?, ?, ?, ?)'
-        )->execute([$vizId, $device['token'], 'processing', json_encode($cleanFindings)]);
+        )->execute([$vizId, $deviceToken, 'processing', $findings ? json_encode($findings) : null]);
 
-        // Flush response, process in background
         $responseData = json_encode(['job_id' => $vizId]);
         header('Content-Type: application/json; charset=utf-8');
         header('Content-Length: ' . strlen($responseData));
@@ -73,12 +85,15 @@ class VisualizationsHandler {
             flush();
         }
 
-        // ── Background processing ─────────────────────────────────────────
         ignore_user_abort(true);
         set_time_limit(120);
 
         try {
-            $filename = OpenAIService::generateVisualization($cleanFindings);
+            if ($directPrompt !== null) {
+                $filename = OpenAIService::generateFromPrompt($directPrompt, $patientName);
+            } else {
+                $filename = OpenAIService::generateVisualization($findings, $patientName);
+            }
             $db->prepare(
                 'UPDATE visualizations SET status = ?, image_filename = ?, updated_at = NOW() WHERE id = ?'
             )->execute(['completed', $filename, $vizId]);

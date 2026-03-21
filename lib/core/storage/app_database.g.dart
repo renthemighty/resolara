@@ -86,6 +86,17 @@ class $VisualizationsTable extends Visualizations
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _patientLabelMeta = const VerificationMeta(
+    'patientLabel',
+  );
+  @override
+  late final GeneratedColumn<String> patientLabel = GeneratedColumn<String>(
+    'patient_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -95,6 +106,7 @@ class $VisualizationsTable extends Visualizations
     bodyRegions,
     findingCount,
     retainUntil,
+    patientLabel,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -166,6 +178,15 @@ class $VisualizationsTable extends Visualizations
         ),
       );
     }
+    if (data.containsKey('patient_label')) {
+      context.handle(
+        _patientLabelMeta,
+        patientLabel.isAcceptableOrUnknown(
+          data['patient_label']!,
+          _patientLabelMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -203,6 +224,10 @@ class $VisualizationsTable extends Visualizations
         DriftSqlType.int,
         data['${effectivePrefix}retain_until'],
       ),
+      patientLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}patient_label'],
+      ),
     );
   }
 
@@ -220,6 +245,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
   final String bodyRegions;
   final int findingCount;
   final int? retainUntil;
+  final String? patientLabel;
   const Visualization({
     required this.id,
     required this.jobId,
@@ -228,6 +254,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
     required this.bodyRegions,
     required this.findingCount,
     this.retainUntil,
+    this.patientLabel,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -240,6 +267,9 @@ class Visualization extends DataClass implements Insertable<Visualization> {
     map['finding_count'] = Variable<int>(findingCount);
     if (!nullToAbsent || retainUntil != null) {
       map['retain_until'] = Variable<int>(retainUntil);
+    }
+    if (!nullToAbsent || patientLabel != null) {
+      map['patient_label'] = Variable<String>(patientLabel);
     }
     return map;
   }
@@ -255,6 +285,9 @@ class Visualization extends DataClass implements Insertable<Visualization> {
       retainUntil: retainUntil == null && nullToAbsent
           ? const Value.absent()
           : Value(retainUntil),
+      patientLabel: patientLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(patientLabel),
     );
   }
 
@@ -271,6 +304,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
       bodyRegions: serializer.fromJson<String>(json['bodyRegions']),
       findingCount: serializer.fromJson<int>(json['findingCount']),
       retainUntil: serializer.fromJson<int?>(json['retainUntil']),
+      patientLabel: serializer.fromJson<String?>(json['patientLabel']),
     );
   }
   @override
@@ -284,6 +318,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
       'bodyRegions': serializer.toJson<String>(bodyRegions),
       'findingCount': serializer.toJson<int>(findingCount),
       'retainUntil': serializer.toJson<int?>(retainUntil),
+      'patientLabel': serializer.toJson<String?>(patientLabel),
     };
   }
 
@@ -295,6 +330,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
     String? bodyRegions,
     int? findingCount,
     Value<int?> retainUntil = const Value.absent(),
+    Value<String?> patientLabel = const Value.absent(),
   }) => Visualization(
     id: id ?? this.id,
     jobId: jobId ?? this.jobId,
@@ -303,6 +339,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
     bodyRegions: bodyRegions ?? this.bodyRegions,
     findingCount: findingCount ?? this.findingCount,
     retainUntil: retainUntil.present ? retainUntil.value : this.retainUntil,
+    patientLabel: patientLabel.present ? patientLabel.value : this.patientLabel,
   );
   Visualization copyWithCompanion(VisualizationsCompanion data) {
     return Visualization(
@@ -319,6 +356,9 @@ class Visualization extends DataClass implements Insertable<Visualization> {
       retainUntil: data.retainUntil.present
           ? data.retainUntil.value
           : this.retainUntil,
+      patientLabel: data.patientLabel.present
+          ? data.patientLabel.value
+          : this.patientLabel,
     );
   }
 
@@ -331,7 +371,8 @@ class Visualization extends DataClass implements Insertable<Visualization> {
           ..write('createdAt: $createdAt, ')
           ..write('bodyRegions: $bodyRegions, ')
           ..write('findingCount: $findingCount, ')
-          ..write('retainUntil: $retainUntil')
+          ..write('retainUntil: $retainUntil, ')
+          ..write('patientLabel: $patientLabel')
           ..write(')'))
         .toString();
   }
@@ -345,6 +386,7 @@ class Visualization extends DataClass implements Insertable<Visualization> {
     bodyRegions,
     findingCount,
     retainUntil,
+    patientLabel,
   );
   @override
   bool operator ==(Object other) =>
@@ -356,7 +398,8 @@ class Visualization extends DataClass implements Insertable<Visualization> {
           other.createdAt == this.createdAt &&
           other.bodyRegions == this.bodyRegions &&
           other.findingCount == this.findingCount &&
-          other.retainUntil == this.retainUntil);
+          other.retainUntil == this.retainUntil &&
+          other.patientLabel == this.patientLabel);
 }
 
 class VisualizationsCompanion extends UpdateCompanion<Visualization> {
@@ -367,6 +410,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
   final Value<String> bodyRegions;
   final Value<int> findingCount;
   final Value<int?> retainUntil;
+  final Value<String?> patientLabel;
   const VisualizationsCompanion({
     this.id = const Value.absent(),
     this.jobId = const Value.absent(),
@@ -375,6 +419,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
     this.bodyRegions = const Value.absent(),
     this.findingCount = const Value.absent(),
     this.retainUntil = const Value.absent(),
+    this.patientLabel = const Value.absent(),
   });
   VisualizationsCompanion.insert({
     this.id = const Value.absent(),
@@ -384,6 +429,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
     required String bodyRegions,
     required int findingCount,
     this.retainUntil = const Value.absent(),
+    this.patientLabel = const Value.absent(),
   }) : jobId = Value(jobId),
        imagePath = Value(imagePath),
        createdAt = Value(createdAt),
@@ -397,6 +443,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
     Expression<String>? bodyRegions,
     Expression<int>? findingCount,
     Expression<int>? retainUntil,
+    Expression<String>? patientLabel,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -406,6 +453,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
       if (bodyRegions != null) 'body_regions': bodyRegions,
       if (findingCount != null) 'finding_count': findingCount,
       if (retainUntil != null) 'retain_until': retainUntil,
+      if (patientLabel != null) 'patient_label': patientLabel,
     });
   }
 
@@ -417,6 +465,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
     Value<String>? bodyRegions,
     Value<int>? findingCount,
     Value<int?>? retainUntil,
+    Value<String?>? patientLabel,
   }) {
     return VisualizationsCompanion(
       id: id ?? this.id,
@@ -426,6 +475,7 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
       bodyRegions: bodyRegions ?? this.bodyRegions,
       findingCount: findingCount ?? this.findingCount,
       retainUntil: retainUntil ?? this.retainUntil,
+      patientLabel: patientLabel ?? this.patientLabel,
     );
   }
 
@@ -453,6 +503,9 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
     if (retainUntil.present) {
       map['retain_until'] = Variable<int>(retainUntil.value);
     }
+    if (patientLabel.present) {
+      map['patient_label'] = Variable<String>(patientLabel.value);
+    }
     return map;
   }
 
@@ -465,7 +518,8 @@ class VisualizationsCompanion extends UpdateCompanion<Visualization> {
           ..write('createdAt: $createdAt, ')
           ..write('bodyRegions: $bodyRegions, ')
           ..write('findingCount: $findingCount, ')
-          ..write('retainUntil: $retainUntil')
+          ..write('retainUntil: $retainUntil, ')
+          ..write('patientLabel: $patientLabel')
           ..write(')'))
         .toString();
   }
@@ -1212,6 +1266,7 @@ typedef $$VisualizationsTableCreateCompanionBuilder =
       required String bodyRegions,
       required int findingCount,
       Value<int?> retainUntil,
+      Value<String?> patientLabel,
     });
 typedef $$VisualizationsTableUpdateCompanionBuilder =
     VisualizationsCompanion Function({
@@ -1222,6 +1277,7 @@ typedef $$VisualizationsTableUpdateCompanionBuilder =
       Value<String> bodyRegions,
       Value<int> findingCount,
       Value<int?> retainUntil,
+      Value<String?> patientLabel,
     });
 
 class $$VisualizationsTableFilterComposer
@@ -1265,6 +1321,11 @@ class $$VisualizationsTableFilterComposer
 
   ColumnFilters<int> get retainUntil => $composableBuilder(
     column: $table.retainUntil,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get patientLabel => $composableBuilder(
+    column: $table.patientLabel,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1312,6 +1373,11 @@ class $$VisualizationsTableOrderingComposer
     column: $table.retainUntil,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get patientLabel => $composableBuilder(
+    column: $table.patientLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VisualizationsTableAnnotationComposer
@@ -1347,6 +1413,11 @@ class $$VisualizationsTableAnnotationComposer
 
   GeneratedColumn<int> get retainUntil => $composableBuilder(
     column: $table.retainUntil,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get patientLabel => $composableBuilder(
+    column: $table.patientLabel,
     builder: (column) => column,
   );
 }
@@ -1391,6 +1462,7 @@ class $$VisualizationsTableTableManager
                 Value<String> bodyRegions = const Value.absent(),
                 Value<int> findingCount = const Value.absent(),
                 Value<int?> retainUntil = const Value.absent(),
+                Value<String?> patientLabel = const Value.absent(),
               }) => VisualizationsCompanion(
                 id: id,
                 jobId: jobId,
@@ -1399,6 +1471,7 @@ class $$VisualizationsTableTableManager
                 bodyRegions: bodyRegions,
                 findingCount: findingCount,
                 retainUntil: retainUntil,
+                patientLabel: patientLabel,
               ),
           createCompanionCallback:
               ({
@@ -1409,6 +1482,7 @@ class $$VisualizationsTableTableManager
                 required String bodyRegions,
                 required int findingCount,
                 Value<int?> retainUntil = const Value.absent(),
+                Value<String?> patientLabel = const Value.absent(),
               }) => VisualizationsCompanion.insert(
                 id: id,
                 jobId: jobId,
@@ -1417,6 +1491,7 @@ class $$VisualizationsTableTableManager
                 bodyRegions: bodyRegions,
                 findingCount: findingCount,
                 retainUntil: retainUntil,
+                patientLabel: patientLabel,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

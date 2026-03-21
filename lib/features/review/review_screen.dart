@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import '../../core/utils/image_stamp.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
@@ -21,8 +22,14 @@ import '../../shared/widgets/loading_overlay.dart';
 class ReviewScreen extends StatefulWidget {
   final GenerationJob job;
   final List<Finding> findings;
+  final String patientName;
 
-  const ReviewScreen({super.key, required this.job, required this.findings});
+  const ReviewScreen({
+    super.key,
+    required this.job,
+    required this.findings,
+    this.patientName = '',
+  });
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -104,6 +111,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         bodyRegions: Value(regions),
         findingCount: Value(_editableFindings.length),
         retainUntil: Value(retainUntil),
+        patientLabel: Value(widget.patientName.isNotEmpty ? widget.patientName : null),
       ));
 
       if (!mounted) return;
@@ -122,14 +130,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _share(Uint8List imageBytes) async {
+    final bytes = widget.patientName.isNotEmpty
+        ? await stampPatientLabel(imageBytes, widget.patientName)
+        : imageBytes;
     final tmp = await getTemporaryDirectory();
     final file = File(p.join(tmp.path, 'resolara_visualization.png'));
-    await file.writeAsBytes(imageBytes);
+    await file.writeAsBytes(bytes);
+    final subject = widget.patientName.isNotEmpty
+        ? 'Resolara — ${widget.patientName}'
+        : 'Resolara Visualization';
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'image/png')],
-      subject: 'Resolara Visualization',
+      subject: subject,
     );
   }
+
 
   void _openDetailsSheet() {
     if (_state is _Ready) {
@@ -198,7 +213,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       canPop: _state is! _Saving,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Review Visualization'),
+          title: Text(widget.patientName.isNotEmpty ? widget.patientName : 'Review Visualization'),
           automaticallyImplyLeading: _state is! _Saving,
           actions: [
             if (_state is! _Saving)

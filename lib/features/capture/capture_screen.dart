@@ -7,6 +7,7 @@ import '../../core/models/captured_report.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import 'preview_screen.dart';
 import '../reader/reader_screen.dart';
+import '../describe/describe_screen.dart';
 
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
@@ -168,6 +169,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       _processing ? null : () => _handleSource(CaptureSource.import),
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import from Files'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _processing
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const DescribeScreen()),
+                          ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Describe Instead'),
                 ),
                 const SizedBox(height: 32),
               ],

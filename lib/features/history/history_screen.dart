@@ -15,6 +15,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   late final Future<AppDatabase> _dbFuture;
+  String _search = '';
 
   @override
   void initState() {
@@ -40,15 +41,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 return const Center(
                     child: CircularProgressIndicator(color: AppTheme.accent));
               }
-              final records = snap.data!;
-              if (records.isEmpty) return const _EmptyHistory();
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: records.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 10),
-                itemBuilder: (context, i) =>
-                    _HistoryCard(record: records[i]),
+              final all = snap.data!;
+              final records = _search.isEmpty
+                  ? all
+                  : all.where((r) {
+                      final q = _search.toLowerCase();
+                      return (r.patientLabel ?? '').toLowerCase().contains(q);
+                    }).toList();
+
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _search = v),
+                      style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Search by patient label…',
+                        hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                        prefixIcon: const Icon(Icons.search, size: 18, color: AppTheme.textSecondary),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppTheme.sage),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: AppTheme.sage.withAlpha(120)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: records.isEmpty
+                        ? const _EmptyHistory()
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: records.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 10),
+                            itemBuilder: (_, i) => _HistoryCard(record: records[i]),
+                          ),
+                  ),
+                ],
               );
             },
           );
@@ -174,7 +209,9 @@ class _HistoryCardState extends State<_HistoryCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      regions,
+                      widget.record.patientLabel?.isNotEmpty == true
+                          ? widget.record.patientLabel!
+                          : regions,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -182,12 +219,16 @@ class _HistoryCardState extends State<_HistoryCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.record.findingCount} finding${widget.record.findingCount == 1 ? '' : 's'}',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppTheme.textSecondary),
-                    ),
+                    if (widget.record.patientLabel?.isNotEmpty == true) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        regions,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppTheme.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       _formatDate(widget.record.createdAt),

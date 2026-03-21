@@ -9,6 +9,9 @@ import '../review/review_screen.dart';
 
 class GenerateScreen extends StatefulWidget {
   final List<Finding> findings;
+  /// If set, bypasses the findings pipeline and sends a direct text prompt.
+  final String? directPrompt;
+  final String patientName;
   /// Set when resuming a cached session — skips submission, polls directly.
   final String? resumeSessionId;
   final String? resumeVizJobId;
@@ -18,7 +21,9 @@ class GenerateScreen extends StatefulWidget {
 
   const GenerateScreen({
     super.key,
-    required this.findings,
+    this.findings = const [],
+    this.directPrompt,
+    this.patientName = '',
     this.resumeSessionId,
     this.resumeVizJobId,
     this.extractionTokensIn = 0,
@@ -71,7 +76,9 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
       if (runId != _runCount) return;
 
-      final jobId = await _service.submitGeneration(_currentFindings);
+      final jobId = widget.directPrompt != null
+          ? await _service.submitDirectPrompt(widget.directPrompt!, patientName: widget.patientName)
+          : await _service.submitGeneration(_currentFindings, patientName: widget.patientName);
       await _sessions.setVizJobId(_sessionId!, jobId);
 
       if (runId != _runCount) return;
@@ -108,6 +115,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
               builder: (_) => ReviewScreen(
                 job: job,
                 findings: _currentFindings,
+                patientName: widget.patientName,
               ),
             ),
           );

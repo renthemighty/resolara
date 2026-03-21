@@ -2,9 +2,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart' show Share, XFile;
 import '../../app/theme/app_theme.dart';
 import '../../core/storage/app_database.dart';
 import '../../core/storage/secure_file_storage.dart';
+import '../../core/utils/image_stamp.dart';
 
 class HistoryDetailScreen extends StatefulWidget {
   final Visualization record;
@@ -36,6 +40,25 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
       ][m];
+
+  Future<void> _share(BuildContext context) async {
+    final bytes = await _imageFuture;
+    if (bytes == null) return;
+    final label = widget.record.patientLabel;
+    final stamped = (label != null && label.isNotEmpty)
+        ? await stampPatientLabel(bytes, label)
+        : bytes;
+    final tmp = await getTemporaryDirectory();
+    final file = File(p.join(tmp.path, 'resolara_visualization.png'));
+    await file.writeAsBytes(stamped);
+    final subject = (label != null && label.isNotEmpty)
+        ? 'Resolara — $label'
+        : 'Resolara Visualization';
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'image/png')],
+      subject: subject,
+    );
+  }
 
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -79,10 +102,18 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
         ? widget.record.bodyRegions.split(',').map((s) => s.trim()).toList()
         : <String>[];
 
+    final label = widget.record.patientLabel;
+    final title = (label != null && label.isNotEmpty) ? label : 'Visualization';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Visualization'),
+        title: Text(title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share',
+            onPressed: () => _share(context),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: AppTheme.error),
             tooltip: 'Delete',

@@ -45,6 +45,10 @@
 	<string>Resolara needs camera access to capture medical report images.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Resolara needs photo library access to import medical report images.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Resolara needs microphone access to transcribe spoken descriptions.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Resolara uses speech recognition to convert spoken descriptions to text.</string>
 <key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

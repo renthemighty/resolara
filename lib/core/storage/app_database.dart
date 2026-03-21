@@ -20,6 +20,7 @@ class Visualizations extends Table {
   TextColumn get bodyRegions => text()(); // comma-separated
   IntColumn get findingCount => integer()();
   IntColumn get retainUntil => integer().nullable()(); // ms since epoch
+  TextColumn get patientLabel => text().nullable()();
 }
 
 /// Tracks every generation attempt — active, completed, and failed.
@@ -51,13 +52,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.createTable(sessions);
+          }
+          if (from < 3) {
+            await m.addColumn(visualizations, visualizations.patientLabel);
           }
         },
       );

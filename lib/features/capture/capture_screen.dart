@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/models/captured_report.dart';
-import '../../core/utils/image_processor.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import 'preview_screen.dart';
 import '../reader/reader_screen.dart';
@@ -64,8 +63,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
         rawFile = File(result.files.single.path!);
       }
 
-      if (!ImageProcessor.isAcceptedType(rawFile.path) &&
-          !rawFile.path.toLowerCase().endsWith('.pdf')) {
+      final ext = rawFile.path.toLowerCase();
+      final isPdf = ext.endsWith('.pdf');
+      final isImage = ext.endsWith('.jpg') || ext.endsWith('.jpeg') ||
+          ext.endsWith('.png') || ext.endsWith('.heic') ||
+          ext.endsWith('.heif') || ext.endsWith('.webp');
+
+      if (!isPdf && !isImage) {
         setState(() {
           _error = 'Unsupported file type. Please choose a JPEG, PNG, or PDF.';
           _processing = false;
@@ -73,20 +77,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
         return;
       }
 
-      // Strip EXIF/metadata from image files (PDFs are passed through for now)
-      final File processed;
-      if (rawFile.path.toLowerCase().endsWith('.pdf')) {
-        processed = rawFile;
-      } else {
-        processed = await ImageProcessor.stripMetadata(rawFile);
-      }
-
       if (!mounted) return;
 
       setState(() => _processing = false);
 
       final report = CapturedReport(
-        file: processed,
+        file: rawFile,
         capturedAt: DateTime.now(),
         source: source,
       );

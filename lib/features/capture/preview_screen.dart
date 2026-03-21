@@ -77,7 +77,7 @@ class _InfoBanner extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Metadata removed. Image will be de-identified before analysis.',
+              'Report text will be de-identified before analysis. Image stays on your device.',
               style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             ),
           ),

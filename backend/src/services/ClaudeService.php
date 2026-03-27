@@ -86,6 +86,27 @@ PROMPT;
         return $parsed;
     }
 
+    /**
+     * Send a plain text prompt and return the response text.
+     * Used by handlers that need a simple text-in / text-out Claude call.
+     */
+    public static function complete(string $prompt, int $maxTokens = 1024): array {
+        $payload = [
+            'model'      => CLAUDE_MODEL,
+            'max_tokens' => $maxTokens,
+            'messages'   => [[
+                'role'    => 'user',
+                'content' => $prompt,
+            ]],
+        ];
+        $response = self::call($payload);
+        return [
+            'content'     => $response['content'][0]['text'] ?? '',
+            'tokens_in'   => $response['usage']['input_tokens']  ?? 0,
+            'tokens_out'  => $response['usage']['output_tokens'] ?? 0,
+        ];
+    }
+
     private static function call(array $payload): array {
         $ch = curl_init(self::API_URL);
         curl_setopt_array($ch, [

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/models/extraction_result.dart';
-import '../generate/generate_screen.dart';
+import '../options/generation_options_screen.dart';
 
 class ExtractScreen extends StatefulWidget {
   final ExtractionResult extraction;
@@ -58,7 +58,7 @@ class _ExtractScreenState extends State<ExtractScreen> {
     }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GenerateScreen(
+        builder: (_) => GenerationOptionsScreen(
           findings: List.unmodifiable(_findings),
           patientName: _labelController.text.trim(),
           extractionTokensIn: widget.extraction.tokensIn,
@@ -123,7 +123,7 @@ class _PatientLabelField extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+        style: const TextStyle(fontSize: 14, color: AppTheme.emerald),
         decoration: InputDecoration(
           hintText: 'Patient label (optional)',
           hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
@@ -196,17 +196,37 @@ class _FindingCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    finding.bodyRegion.toUpperCase(),
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
-                        letterSpacing: 0.8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        finding.bodyRegion.toUpperCase(),
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? AppTheme.warmStone
+                                : AppTheme.emerald,
+                            letterSpacing: 0.8),
+                      ),
+                      if (finding.laymanTerm.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          finding.laymanTerm,
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 _ConfidencePill(confidence: finding.confidence),
               ],
             ),
@@ -214,7 +234,9 @@ class _FindingCard extends StatelessWidget {
             Text(finding.text,
                 style: TextStyle(
                     fontSize: 15,
-                    color: Theme.of(context).colorScheme.onSurface)),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppTheme.warmStone
+                        : AppTheme.emerald)),
             if (isLow) ...[
               const SizedBox(height: 8),
               const Row(
@@ -396,13 +418,13 @@ class _EditFindingSheetState extends State<_EditFindingSheet> {
           const SizedBox(height: 20),
           TextField(
             controller: _regionController,
-            decoration: const InputDecoration(labelText: 'Body Region'),
+            decoration: const InputDecoration(hintText: 'Body region'),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _textController,
-            decoration: const InputDecoration(labelText: 'Finding'),
+            decoration: const InputDecoration(hintText: 'Finding description'),
             maxLines: 4,
           ),
           const SizedBox(height: 20),

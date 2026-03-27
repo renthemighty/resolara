@@ -26,6 +26,7 @@ require_once __DIR__ . '/src/handlers/ConfigHandler.php';
 require_once __DIR__ . '/src/handlers/LogoutHandler.php';
 require_once __DIR__ . '/src/handlers/MedicationsHandler.php';
 require_once __DIR__ . '/src/handlers/ExercisesHandler.php';
+require_once __DIR__ . '/src/handlers/ExplanationHandler.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 
@@ -99,6 +100,10 @@ if ($path === '/v1/medications') {
 
 if ($path === '/v1/exercises') {
     ExercisesHandler::handle();
+}
+
+if ($path === '/v1/explanation') {
+    ExplanationHandler::handle();
 }
 
 if ($path === '/v1/visualizations') {

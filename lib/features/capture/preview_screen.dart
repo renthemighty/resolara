@@ -34,7 +34,6 @@ class PreviewScreen extends StatelessWidget {
               child: Image.file(report.file, fit: BoxFit.contain),
             ),
           ),
-          _InfoBanner(),
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -55,30 +54,6 @@ class PreviewScreen extends StatelessWidget {
                   child: const Text('Retake / Choose Different'),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  const _InfoBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.primary.withAlpha(20),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: const Row(
-        children: [
-          Icon(Icons.shield_outlined, size: 16, color: AppTheme.primary),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Report text will be de-identified before analysis. Image stays on your device.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             ),
           ),
         ],

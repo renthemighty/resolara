@@ -249,10 +249,12 @@ class _SessionCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 regions,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
-                  color: AppTheme.textPrimary,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.warmStone
+                      : AppTheme.emerald,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

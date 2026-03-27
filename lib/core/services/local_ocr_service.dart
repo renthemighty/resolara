@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+
+const _pdfTextChannel = MethodChannel('resolara.ai/pdf_text');
 
 class LocalOcrException implements Exception {
   final String message;
@@ -29,6 +32,22 @@ class LocalOcrService {
     File pdfFile, {
     void Function(int page, int total)? onPageProgress,
   }) async {
+    // ── Strategy 1: native PDFKit text extraction (iOS) ───────────────────
+    // Instant and perfect for text-based PDFs (hospital-generated reports).
+    try {
+      final native = await _pdfTextChannel.invokeMethod<String>(
+        'extractText',
+        {'path': pdfFile.path},
+      );
+      if (native != null && native.trim().isNotEmpty) {
+        return native;
+      }
+    } catch (_) {
+      // Channel not available (Android / old build) — fall through to OCR.
+    }
+
+    // ── Strategy 2: render pages + ML Kit OCR ─────────────────────────────
+    // Fallback for scanned PDFs where native extraction returns nothing.
     final document = await PdfDocument.openFile(pdfFile.path);
     final pageCount = document.pagesCount;
     final buffer = StringBuffer();
@@ -39,10 +58,15 @@ class LocalOcrService {
         onPageProgress?.call(i, pageCount);
 
         final page = await document.getPage(i);
+        // Render at ~300 DPI equivalent (PDF points are at 72 DPI).
+        // Cap at 2480px wide to keep memory reasonable on older devices.
+        final scale = (2480 / page.width).clamp(3.0, 6.0);
         final pageImage = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
+          width: page.width * scale,
+          height: page.height * scale,
           format: PdfPageImageFormat.png,
+          backgroundColor: '#ffffff',
+          forPrint: true,
         );
         await page.close();
 

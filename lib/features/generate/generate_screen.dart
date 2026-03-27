@@ -38,7 +38,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
   final _service = GenerationService();
   _GenState _state = const _Submitting();
   late List<Finding> _currentFindings;
-  late SessionService _sessions;
+  SessionService? _sessions;
   String? _sessionId;
   int _runCount = 0;
 
@@ -64,11 +64,12 @@ class _GenerateScreenState extends State<GenerateScreen> {
   }
 
   Future<void> _run() async {
+    if (_sessions == null) return; // _initSessions will call _run() once ready
     final runId = _runCount;
     setState(() => _state = const _Submitting());
     try {
       // Create local session record
-      _sessionId = await _sessions.createSession(
+      _sessionId = await _sessions!.createSession(
         findings: _currentFindings,
         tokensIn: widget.extractionTokensIn,
         tokensOut: widget.extractionTokensOut,
@@ -79,18 +80,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
       final jobId = widget.directPrompt != null
           ? await _service.submitDirectPrompt(widget.directPrompt!, patientName: widget.patientName)
           : await _service.submitGeneration(_currentFindings, patientName: widget.patientName);
-      await _sessions.setVizJobId(_sessionId!, jobId);
+      await _sessions!.setVizJobId(_sessionId!, jobId);
 
       if (runId != _runCount) return;
 
       setState(() => _state = const _Processing());
       _pollJob(jobId, runId);
     } on GenerationServiceException catch (e) {
-      if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
+      if (_sessionId != null) await _sessions?.failSession(_sessionId!, e.message);
       if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } catch (e) {
       final msg = 'An unexpected error occurred: $e';
-      if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+      if (_sessionId != null) await _sessions?.failSession(_sessionId!, msg);
       if (mounted && runId == _runCount) setState(() => _state = _Failed(msg));
     }
   }
@@ -101,13 +102,13 @@ class _GenerateScreenState extends State<GenerateScreen> {
         if (!mounted || runId != _runCount) return;
         if (job.status == GenerationJobStatus.failed) {
           final msg = job.error ?? 'Generation failed.';
-          if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+          if (_sessionId != null) await _sessions?.failSession(_sessionId!, msg);
           setState(() => _state = _Failed(msg));
           return;
         }
         if (job.status == GenerationJobStatus.completed) {
           if (_sessionId != null && job.imageUrl != null) {
-            await _sessions.completeSession(_sessionId!, imageUrl: job.imageUrl!);
+            await _sessions?.completeSession(_sessionId!, imageUrl: job.imageUrl!);
           }
           if (!mounted || runId != _runCount) return;
           final updated = await Navigator.of(context).push<List<Finding>>(
@@ -127,18 +128,18 @@ class _GenerateScreenState extends State<GenerateScreen> {
         }
       }
     } on GenerationServiceException catch (e) {
-      if (_sessionId != null) await _sessions.failSession(_sessionId!, e.message);
+      if (_sessionId != null) await _sessions?.failSession(_sessionId!, e.message);
       if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } catch (e) {
       final msg = 'An unexpected error occurred: $e';
-      if (_sessionId != null) await _sessions.failSession(_sessionId!, msg);
+      if (_sessionId != null) await _sessions?.failSession(_sessionId!, msg);
       if (mounted && runId == _runCount) setState(() => _state = _Failed(msg));
     }
   }
 
   void _stop() {
     if (_sessionId != null) {
-      _sessions.failSession(_sessionId!, 'Stopped by user');
+      _sessions?.failSession(_sessionId!, 'Stopped by user');
       _sessionId = null;
     }
     _runCount++;
@@ -217,8 +218,6 @@ class _SubmittingView extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
         const SizedBox(height: 32),
-        const _PrivacyNote(),
-        const SizedBox(height: 24),
         _StopButton(onStop: onStop),
       ],
     );
@@ -254,8 +253,6 @@ class _ProcessingView extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
         const SizedBox(height: 32),
-        const _PrivacyNote(),
-        const SizedBox(height: 24),
         _StopButton(onStop: onStop),
       ],
     );
@@ -275,6 +272,10 @@ class _FailedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = Theme.of(context).colorScheme.surface;
+    final onSurfaceColor = Theme.of(context).colorScheme.onSurface;
+
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -288,20 +289,20 @@ class _FailedView extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.error.withAlpha(60)),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Icon(Icons.error_outline, size: 48, color: AppTheme.error),
-                SizedBox(height: 16),
+                const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
+                const SizedBox(height: 16),
                 Text(
                   'Generation failed',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: onSurfaceColor),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   'The visualization could not be created. This is usually temporary.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                  style: TextStyle(color: onSurfaceColor.withAlpha(160), fontSize: 14),
                 ),
               ],
             ),
@@ -310,24 +311,24 @@ class _FailedView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.surface.withAlpha(80),
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.sage.withAlpha(60)),
+              border: Border.all(color: AppTheme.sage.withAlpha(isDark ? 60 : 120)),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('What to do',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textSecondary)),
-                SizedBox(height: 10),
-                _Tip(icon: Icons.refresh, text: 'Tap Try Again — most failures resolve on the first retry.'),
-                SizedBox(height: 8),
-                _Tip(icon: Icons.wifi_outlined, text: 'Check your internet connection if retries keep failing.'),
-                SizedBox(height: 8),
-                _Tip(icon: Icons.arrow_back_outlined, text: 'Go Back to edit the findings and try with fewer regions.'),
+                        color: onSurfaceColor.withAlpha(180))),
+                const SizedBox(height: 10),
+                _Tip(icon: Icons.refresh, text: 'Tap Try Again — most failures resolve on the first retry.', color: onSurfaceColor),
+                const SizedBox(height: 8),
+                _Tip(icon: Icons.wifi_outlined, text: 'Check your internet connection if retries keep failing.', color: onSurfaceColor),
+                const SizedBox(height: 8),
+                _Tip(icon: Icons.arrow_back_outlined, text: 'Go Back to edit the findings and try with fewer regions.', color: onSurfaceColor),
               ],
             ),
           ),
@@ -336,12 +337,12 @@ class _FailedView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              color: AppTheme.surface.withAlpha(40),
+              color: surfaceColor,
             ),
             child: Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              style: TextStyle(fontSize: 11, color: onSurfaceColor.withAlpha(160)),
             ),
           ),
           const SizedBox(height: 24),
@@ -368,7 +369,8 @@ class _FailedView extends StatelessWidget {
 class _Tip extends StatelessWidget {
   final IconData icon;
   final String text;
-  const _Tip({required this.icon, required this.text});
+  final Color color;
+  const _Tip({required this.icon, required this.text, required this.color});
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -378,31 +380,13 @@ class _Tip extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(text,
-              style: const TextStyle(
-                  fontSize: 13, color: AppTheme.textSecondary)),
+              style: TextStyle(fontSize: 13, color: color.withAlpha(200))),
         ),
       ],
     );
   }
 }
 
-class _PrivacyNote extends StatelessWidget {
-  const _PrivacyNote();
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.shield_outlined, size: 14, color: AppTheme.textSecondary),
-        SizedBox(width: 6),
-        Text(
-          'Generated using de-identified findings only.',
-          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-        ),
-      ],
-    );
-  }
-}
 
 class _StopButton extends StatelessWidget {
   final VoidCallback onStop;

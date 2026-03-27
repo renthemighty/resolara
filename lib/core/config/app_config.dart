@@ -5,7 +5,7 @@ class AppConfig {
   AppConfig._();
 
   static const String appName = 'Resolara';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.3.2';
 
   // Compile-time override: flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8099
   static const String _compiledApiBaseUrl = String.fromEnvironment(

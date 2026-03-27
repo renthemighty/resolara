@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../app/theme/app_theme.dart';
 import '../app/review_mode.dart';
+import 'router.dart' show shellNavigatorKey;
 
 class AppShell extends StatelessWidget {
   final Widget child;
@@ -41,16 +42,22 @@ class AppShell extends StatelessWidget {
               );
             }),
             onDestinationSelected: (index) {
+              if (index == 0) {
+                // Pop all imperative routes pushed on top of the shell's inner
+                // navigator (e.g. ReaderScreen → ExtractScreen → GenerateScreen)
+                // before navigating, so Capture always returns to the root screen.
+                shellNavigatorKey.currentState?.popUntil((r) => r.isFirst);
+                context.go('/home');
+                return;
+              }
               if (inReview) {
                 switch (index) {
-                  case 0: context.go('/home');
                   case 1: context.go('/sessions');
                   case 2: onDetailsTabTapped?.call();
                   case 3: context.go('/settings');
                 }
               } else {
                 switch (index) {
-                  case 0: context.go('/home');
                   case 1: context.go('/sessions');
                   case 2: context.go('/settings');
                 }

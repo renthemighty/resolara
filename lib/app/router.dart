@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../core/auth/auth_service.dart';
 import '../features/activation/activation_screen.dart';
@@ -8,6 +9,10 @@ import '../features/settings/settings_screen.dart';
 import 'app_shell.dart';
 
 final _auth = AuthService();
+
+/// Key for the shell's inner navigator — used by AppShell to pop imperative
+/// routes when the Capture tab is tapped from anywhere in the flow.
+final shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
   initialLocation: '/home',
@@ -24,6 +29,7 @@ final appRouter = GoRouter(
       builder: (context, state) => const ActivationScreen(),
     ),
     ShellRoute(
+      navigatorKey: shellNavigatorKey,
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(

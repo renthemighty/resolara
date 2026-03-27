@@ -25,6 +25,7 @@ require_once __DIR__ . '/src/handlers/ImagesHandler.php';
 require_once __DIR__ . '/src/handlers/ConfigHandler.php';
 require_once __DIR__ . '/src/handlers/LogoutHandler.php';
 require_once __DIR__ . '/src/handlers/MedicationsHandler.php';
+require_once __DIR__ . '/src/handlers/ExercisesHandler.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 
@@ -94,6 +95,10 @@ if (preg_match('#^/v1/jobs/([a-f0-9\-]+)$#i', $path, $m)) {
 
 if ($path === '/v1/medications') {
     MedicationsHandler::handle();
+}
+
+if ($path === '/v1/exercises') {
+    ExercisesHandler::handle();
 }
 
 if ($path === '/v1/visualizations') {

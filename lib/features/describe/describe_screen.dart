@@ -110,7 +110,12 @@ class _DescribeScreenState extends State<DescribeScreen> {
             ),
             child: TextField(
               controller: _labelController,
-              style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppTheme.warmStone
+                    : AppTheme.emerald,
+              ),
               decoration: InputDecoration(
                 hintText: 'Patient label (optional)',
                 hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
@@ -137,12 +142,14 @@ class _DescribeScreenState extends State<DescribeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Describe what you want to show',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textSecondary,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.warmStone
+                          : AppTheme.emerald,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -153,9 +160,11 @@ class _DescribeScreenState extends State<DescribeScreen> {
                       maxLines: null,
                       expands: true,
                       textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
-                        color: AppTheme.textPrimary,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppTheme.warmStone
+                            : AppTheme.emerald,
                         height: 1.5,
                       ),
                       decoration: InputDecoration(

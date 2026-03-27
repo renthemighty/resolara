@@ -125,13 +125,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       const Icon(Icons.document_scanner_outlined, size: 72, color: AppTheme.primary),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Capture or import a medical report',
+                Text(
+                  'Capture or Upload Report',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppTheme.warmStone
+                          : AppTheme.emerald),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 16),

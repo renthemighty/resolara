@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
@@ -53,7 +54,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
       if (!mounted || runId != _runCount) return;
 
-      if (rawText.trim().isEmpty) {
+      // Strip control characters (except tab/newline/CR) that can break
+      // JSON parsing on the server when coming from PDF OCR.
+      final cleanedRaw = rawText.replaceAll(
+        RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x80-\x9F]'),
+        '',
+      );
+
+      if (cleanedRaw.trim().isEmpty) {
         setState(() => _state = const _Failed(
           'Could not read text from this report. Please try a clearer image.',
         ));
@@ -61,7 +69,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       }
 
       // ── Phase 2: On-device redaction ───────────────────────────────────
-      final redaction = RedactionService.redact(rawText);
+      final redaction = RedactionService.redact(cleanedRaw);
 
       // ── Phase 3: Submit cleaned text ───────────────────────────────────
       setState(() => _state = const _Submitting());
@@ -100,9 +108,19 @@ class _ReaderScreenState extends State<ReaderScreen> {
       if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
     } on OcrServiceException catch (e) {
       if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
-    } catch (_) {
+    } on DioException catch (e) {
       if (mounted && runId == _runCount) {
-        setState(() => _state = const _Failed('An unexpected error occurred.'));
+        final msg = e.response?.statusCode != null
+            ? 'Server error (${e.response!.statusCode}). Please try again.'
+            : 'Could not reach server. Check your connection.';
+        setState(() => _state = _Failed(msg));
+      }
+    } catch (e) {
+      if (mounted && runId == _runCount) {
+        final msg = e.toString().contains('objective_c') || e.toString().contains('pdfx')
+            ? 'PDF processing is not supported on this device. Please try a JPEG or PNG image instead.'
+            : 'An unexpected error occurred. Please try again.';
+        setState(() => _state = _Failed(msg));
       }
     }
   }
@@ -132,7 +150,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               _Failed(message: final msg) => _FailedView(
                   message: msg,
                   onRetry: _run,
-                  onCancel: () => context.go('/home'),
+                  onCancel: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 ),
             },
           ),
@@ -206,8 +224,6 @@ class _ReadingReportView extends StatelessWidget {
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        const SizedBox(height: 32),
-        const _PrivacyNote(),
         const SizedBox(height: 24),
         _StopButton(onStop: onStop),
       ],
@@ -245,8 +261,6 @@ class _SubmittingView extends StatelessWidget {
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        const SizedBox(height: 32),
-        const _PrivacyNote(),
         const SizedBox(height: 24),
         _StopButton(onStop: onStop),
       ],
@@ -271,12 +285,6 @@ class _PollingView extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Identifying information has been removed. Only report text is transmitted.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.textSecondary),
-        ),
         const SizedBox(height: 24),
         const LinearProgressIndicator(
           backgroundColor: Color(0x1A1A3A5C),
@@ -284,8 +292,6 @@ class _PollingView extends StatelessWidget {
           minHeight: 8,
           borderRadius: BorderRadius.all(Radius.circular(4)),
         ),
-        const SizedBox(height: 32),
-        const _PrivacyNote(),
         const SizedBox(height: 24),
         _StopButton(onStop: onStop),
       ],
@@ -306,56 +312,38 @@ class _FailedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-        const SizedBox(height: 24),
-        const Text(
-          'Processing failed',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppTheme.textSecondary),
-        ),
-        const SizedBox(height: 32),
-        ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: onCancel,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 16),
+          const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+          const SizedBox(height: 24),
+          const Text(
+            'Processing failed',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          child: const Text('Cancel'),
-        ),
-      ],
-    );
-  }
-}
-
-class _PrivacyNote extends StatelessWidget {
-  const _PrivacyNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.shield_outlined, size: 14, color: AppTheme.textSecondary),
-        SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            'Images stay on your device. Only report text is transmitted.',
-            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.textSecondary),
           ),
-        ),
-      ],
+          const SizedBox(height: 32),
+          ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 }

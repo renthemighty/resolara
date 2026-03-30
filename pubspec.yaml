@@ -68,6 +68,7 @@ dev_dependencies:
   riverpod_generator: ^2.6.1
   drift_dev: ^2.23.1
   flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.3
 
 flutter_launcher_icons:
   android: true
@@ -75,6 +76,15 @@ flutter_launcher_icons:
   image_path: "assets/images/SMALL-Resolara_V5.png"
   background_color: "#0E3A29"
   ios_background_color: "#0E3A29"
+
+flutter_native_splash:
+  color: "#0A1F1C"
+  image: assets/images/SMALL-Resolara_V5.png
+  android: true
+  ios: true
+  android_12:
+    color: "#0A1F1C"
+    image: assets/images/SMALL-Resolara_V5.png
 
 flutter:
   uses-material-design: true

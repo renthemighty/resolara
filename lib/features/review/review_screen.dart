@@ -430,9 +430,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
         shareCode = await ShareService().createShare(
           imageUrl: imageUrl,
           findings: _editableFindings
-              .map((f) => {'body_region': f.bodyRegion, 'description': f.text})
+              .map((f) => {'body_region': f.bodyRegion, 'description': f.text, 'layman_term': f.laymanTerm})
               .toList(),
           patientName: widget.patientName.isNotEmpty ? widget.patientName : null,
+          explanations: _explanations
+              .where((e) => _patientExplanationIds.contains(e.id))
+              .map((e) => e.toJson())
+              .toList(),
+          exercises: _exercises
+              .where((e) => _patientExerciseIds.contains(e.exercise.id))
+              .map((e) => e.exercise.toJson())
+              .toList(),
+          medications: _medications
+              .where((m) => m.active)
+              .map((m) => m.medication.toJson())
+              .toList(),
         );
         Analytics.shareCreated();
       } catch (_) {

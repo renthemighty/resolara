@@ -333,12 +333,10 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
                 }
               },
               child: _ExercisesSection(
-                loading:      _exercisesLoading,
-                error:        _exercisesError,
-                exercises:    _exercises,
-                currentPhase: _exercisePhase,
-                onPhase:      (p) => _loadExercises(p),
-                onRetry:      () => _loadExercises(_exercisePhase),
+                loading:   _exercisesLoading,
+                error:     _exercisesError,
+                exercises: _exercises,
+                onRetry:   () => _loadExercises(_exercisePhase),
               ),
             ),
             const SizedBox(height: 8),
@@ -601,94 +599,28 @@ class _ExercisesSection extends StatelessWidget {
   final bool           loading;
   final String?        error;
   final List<Exercise> exercises;
-  final String         currentPhase;
-  final void Function(String phase) onPhase;
   final VoidCallback   onRetry;
 
   const _ExercisesSection({
     required this.loading,
     required this.error,
     required this.exercises,
-    required this.currentPhase,
-    required this.onPhase,
     required this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
-    final phases = [
-      ('acute',          'Acute',          'Weeks 1–2'),
-      ('subacute',       'Subacute',       'Weeks 2–6'),
-      ('rehabilitation', 'Rehabilitation', '6+ weeks'),
-    ];
+    if (loading)    return const _SectionLoading('Loading exercises…');
+    if (error != null) return _SectionError(message: error!, onRetry: onRetry);
+    if (exercises.isEmpty) return const _SectionLoading('Loading exercises…');
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Phase selector
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: Row(
-            children: phases.map((p) {
-              final selected = p.$1 == currentPhase;
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: GestureDetector(
-                    onTap: () => onPhase(p.$1),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 7),
-                      decoration: BoxDecoration(
-                        color: selected ? AppTheme.gold : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selected ? AppTheme.gold : AppTheme.sage.withAlpha(100),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(p.$2,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: selected ? AppTheme.emerald : AppTheme.textSecondary)),
-                          Text(p.$3,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 9,
-                                  color: selected ? AppTheme.emerald.withAlpha(180) : AppTheme.textSecondary.withAlpha(160))),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        if (loading)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: _SectionLoading('Loading exercises…'),
-          )
-        else if (error != null)
-          _SectionError(message: error!, onRetry: onRetry)
-        else if (exercises.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: _SectionLoading('Loading exercises…'),
-          )
-        else
-          ListView.separated(
-            shrinkWrap:       true,
-            physics:          const NeverScrollableScrollPhysics(),
-            padding:          const EdgeInsets.all(16),
-            itemCount:        exercises.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder:      (_, i)  => _ExerciseCard(ex: exercises[i]),
-          ),
-      ],
+    return ListView.separated(
+      shrinkWrap:       true,
+      physics:          const NeverScrollableScrollPhysics(),
+      padding:          const EdgeInsets.all(16),
+      itemCount:        exercises.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder:      (_, i)  => _ExerciseCard(ex: exercises[i]),
     );
   }
 }
@@ -794,25 +726,6 @@ class _MedicationsSection extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          margin:     const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          padding:    const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color:        AppTheme.gold.withAlpha(20),
-            borderRadius: BorderRadius.circular(8),
-            border:       Border.all(color: AppTheme.gold.withAlpha(60)),
-          ),
-          child: const Row(children: [
-            Icon(Icons.info_outline, size: 14, color: AppTheme.gold),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'AI-generated suggestions only. Always consult your healthcare provider before taking any medication.',
-                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-              ),
-            ),
-          ]),
-        ),
         ListView.separated(
           shrinkWrap:       true,
           physics:          const NeverScrollableScrollPhysics(),

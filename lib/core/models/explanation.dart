@@ -21,4 +21,12 @@ class FindingExplanation {
         whyItMatters:  json['why_it_matters']  as String? ?? '',
         outlook:       json['outlook']         as String? ?? '',
       );
+
+  Map<String, dynamic> toJson() => {
+        'id':            id,
+        'heading':       heading,
+        'what_it_is':    whatItIs,
+        'why_it_matters': whyItMatters,
+        'outlook':       outlook,
+      };
 }

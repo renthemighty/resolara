@@ -15,18 +15,24 @@ class ShareService {
   final _dio = ApiClient.instance.dio;
 
   /// Practitioner: create a share code for a completed session.
-  /// Returns the short code (e.g. "ABCD-1234").
+  /// Returns the short code (e.g. "ABCDEF").
   Future<String> createShare({
     required String imageUrl,
     List<Map<String, dynamic>> findings = const [],
     String? patientName,
+    List<Map<String, dynamic>> explanations = const [],
+    List<Map<String, dynamic>> exercises    = const [],
+    List<Map<String, dynamic>> medications  = const [],
   }) async {
     try {
       final res = await _dio.post('/v1/share', data: {
-        'image_url':   imageUrl,
-        'findings':    findings,
+        'image_url':    imageUrl,
+        'findings':     findings,
         if (patientName != null && patientName.isNotEmpty)
           'patient_name': patientName,
+        if (explanations.isNotEmpty) 'explanations': explanations,
+        if (exercises.isNotEmpty)    'exercises':    exercises,
+        if (medications.isNotEmpty)  'medications':  medications,
       });
       final code = res.data['code'] as String?;
       if (code == null || code.isEmpty) {

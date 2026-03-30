@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../../core/services/analytics_service.dart';
 import '../../core/models/explanation.dart';
 import '../../core/models/exercise.dart';
 import '../../core/models/medication.dart';
+import '../../core/storage/app_database.dart';
 
 class PatientResultsScreen extends StatefulWidget {
   /// Share code — screen loads everything in the background.
@@ -21,6 +23,11 @@ class PatientResultsScreen extends StatefulWidget {
 
 class _PatientResultsScreenState extends State<PatientResultsScreen> {
   final _service = ShareService();
+
+  // Save state
+  AppDatabase? _db;
+  bool _saved        = false;
+  bool _saveLoading  = false;
 
   // Basic data
   String? _patientName;
@@ -55,7 +62,47 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.shareCode != null) _fetchBasic(widget.shareCode!);
+    if (widget.shareCode != null) {
+      _fetchBasic(widget.shareCode!);
+      _checkSaved(widget.shareCode!);
+    }
+  }
+
+  Future<void> _checkSaved(String code) async {
+    final db = await openAppDatabase();
+    if (!mounted) return;
+    _db = db;
+    final row = await db.getPatientSaved(code);
+    if (!mounted) return;
+    setState(() => _saved = row != null);
+  }
+
+  Future<void> _toggleSave() async {
+    final code = widget.shareCode;
+    if (code == null || _saveLoading || _db == null) return;
+    setState(() => _saveLoading = true);
+    try {
+      if (_saved) {
+        await _db!.deletePatientSaved(code);
+        if (!mounted) return;
+        setState(() { _saved = false; _saveLoading = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from My Results')));
+      } else {
+        await _db!.insertPatientSaved(PatientSavedResultsCompanion(
+          shareCode:  Value(code.toUpperCase()),
+          patientName: Value(_patientName),
+          savedAt:    Value(DateTime.now().millisecondsSinceEpoch),
+        ));
+        if (!mounted) return;
+        setState(() { _saved = true; _saveLoading = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved to My Results')));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saveLoading = false);
+    }
   }
 
   // ── Basic fetch (fast file read) ──────────────────────────────────────────
@@ -205,7 +252,28 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
     final title = (_patientName?.isNotEmpty == true) ? _patientName! : 'My Results';
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          if (widget.shareCode != null)
+            _saveLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.gold),
+                    ),
+                  )
+                : IconButton(
+                    icon: Icon(
+                      _saved ? Icons.bookmark : Icons.bookmark_border,
+                      color: _saved ? AppTheme.gold : null,
+                    ),
+                    tooltip: _saved ? 'Remove from My Results' : 'Save to My Results',
+                    onPressed: _toggleSave,
+                  ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),

@@ -84,13 +84,6 @@ class PatientHomeScreen extends StatelessWidget {
             ),
 
             const Spacer(),
-
-            const Text(
-              'Images and explanations are for educational purposes only.\nAll clinical decisions remain with your healthcare provider.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 16),
           ],
         ),
       ),

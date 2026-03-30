@@ -12,6 +12,13 @@ part 'app_database.g.dart';
 // Tables
 // ---------------------------------------------------------------------------
 
+class PatientSavedResults extends Table {
+  IntColumn get id         => integer().autoIncrement()();
+  TextColumn get shareCode  => text()();
+  TextColumn get patientName => text().nullable()();
+  IntColumn  get savedAt   => integer()(); // ms since epoch
+}
+
 class Visualizations extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get jobId => text()();
@@ -47,12 +54,12 @@ class Sessions extends Table {
 // Database
 // ---------------------------------------------------------------------------
 
-@DriftDatabase(tables: [Visualizations, Sessions])
+@DriftDatabase(tables: [Visualizations, Sessions, PatientSavedResults])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +73,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             await m.addColumn(sessions, sessions.tokensIn);
             await m.addColumn(sessions, sessions.tokensOut);
+          }
+          if (from < 5) {
+            await m.createTable(patientSavedResults);
           }
         },
       );
@@ -121,6 +131,26 @@ class AppDatabase extends _$AppDatabase {
             ..where((t) => t.status.equals('generating'))
             ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
           .get();
+
+  // ── Patient Saved Results ─────────────────────────────────────────────────
+
+  Stream<List<PatientSavedResult>> watchPatientSaved() =>
+      (select(patientSavedResults)
+            ..orderBy([(t) => OrderingTerm.desc(t.savedAt)]))
+          .watch();
+
+  Future<PatientSavedResult?> getPatientSaved(String code) =>
+      (select(patientSavedResults)
+            ..where((t) => t.shareCode.equals(code.toUpperCase())))
+          .getSingleOrNull();
+
+  Future<void> insertPatientSaved(PatientSavedResultsCompanion entry) =>
+      into(patientSavedResults).insert(entry);
+
+  Future<void> deletePatientSaved(String code) =>
+      (delete(patientSavedResults)
+            ..where((t) => t.shareCode.equals(code.toUpperCase())))
+          .go();
 }
 
 // ---------------------------------------------------------------------------

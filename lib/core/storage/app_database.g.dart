@@ -1242,11 +1242,320 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   }
 }
 
+class $PatientSavedResultsTable extends PatientSavedResults
+    with TableInfo<$PatientSavedResultsTable, PatientSavedResult> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PatientSavedResultsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _shareCodeMeta = const VerificationMeta(
+    'shareCode',
+  );
+  @override
+  late final GeneratedColumn<String> shareCode = GeneratedColumn<String>(
+    'share_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _patientNameMeta = const VerificationMeta(
+    'patientName',
+  );
+  @override
+  late final GeneratedColumn<String> patientName = GeneratedColumn<String>(
+    'patient_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _savedAtMeta = const VerificationMeta(
+    'savedAt',
+  );
+  @override
+  late final GeneratedColumn<int> savedAt = GeneratedColumn<int>(
+    'saved_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, shareCode, patientName, savedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'patient_saved_results';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PatientSavedResult> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('share_code')) {
+      context.handle(
+        _shareCodeMeta,
+        shareCode.isAcceptableOrUnknown(data['share_code']!, _shareCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_shareCodeMeta);
+    }
+    if (data.containsKey('patient_name')) {
+      context.handle(
+        _patientNameMeta,
+        patientName.isAcceptableOrUnknown(
+          data['patient_name']!,
+          _patientNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('saved_at')) {
+      context.handle(
+        _savedAtMeta,
+        savedAt.isAcceptableOrUnknown(data['saved_at']!, _savedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_savedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PatientSavedResult map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PatientSavedResult(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      shareCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}share_code'],
+      )!,
+      patientName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}patient_name'],
+      ),
+      savedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}saved_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PatientSavedResultsTable createAlias(String alias) {
+    return $PatientSavedResultsTable(attachedDatabase, alias);
+  }
+}
+
+class PatientSavedResult extends DataClass
+    implements Insertable<PatientSavedResult> {
+  final int id;
+  final String shareCode;
+  final String? patientName;
+  final int savedAt;
+  const PatientSavedResult({
+    required this.id,
+    required this.shareCode,
+    this.patientName,
+    required this.savedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['share_code'] = Variable<String>(shareCode);
+    if (!nullToAbsent || patientName != null) {
+      map['patient_name'] = Variable<String>(patientName);
+    }
+    map['saved_at'] = Variable<int>(savedAt);
+    return map;
+  }
+
+  PatientSavedResultsCompanion toCompanion(bool nullToAbsent) {
+    return PatientSavedResultsCompanion(
+      id: Value(id),
+      shareCode: Value(shareCode),
+      patientName: patientName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(patientName),
+      savedAt: Value(savedAt),
+    );
+  }
+
+  factory PatientSavedResult.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PatientSavedResult(
+      id: serializer.fromJson<int>(json['id']),
+      shareCode: serializer.fromJson<String>(json['shareCode']),
+      patientName: serializer.fromJson<String?>(json['patientName']),
+      savedAt: serializer.fromJson<int>(json['savedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'shareCode': serializer.toJson<String>(shareCode),
+      'patientName': serializer.toJson<String?>(patientName),
+      'savedAt': serializer.toJson<int>(savedAt),
+    };
+  }
+
+  PatientSavedResult copyWith({
+    int? id,
+    String? shareCode,
+    Value<String?> patientName = const Value.absent(),
+    int? savedAt,
+  }) => PatientSavedResult(
+    id: id ?? this.id,
+    shareCode: shareCode ?? this.shareCode,
+    patientName: patientName.present ? patientName.value : this.patientName,
+    savedAt: savedAt ?? this.savedAt,
+  );
+  PatientSavedResult copyWithCompanion(PatientSavedResultsCompanion data) {
+    return PatientSavedResult(
+      id: data.id.present ? data.id.value : this.id,
+      shareCode: data.shareCode.present ? data.shareCode.value : this.shareCode,
+      patientName: data.patientName.present
+          ? data.patientName.value
+          : this.patientName,
+      savedAt: data.savedAt.present ? data.savedAt.value : this.savedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PatientSavedResult(')
+          ..write('id: $id, ')
+          ..write('shareCode: $shareCode, ')
+          ..write('patientName: $patientName, ')
+          ..write('savedAt: $savedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, shareCode, patientName, savedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PatientSavedResult &&
+          other.id == this.id &&
+          other.shareCode == this.shareCode &&
+          other.patientName == this.patientName &&
+          other.savedAt == this.savedAt);
+}
+
+class PatientSavedResultsCompanion extends UpdateCompanion<PatientSavedResult> {
+  final Value<int> id;
+  final Value<String> shareCode;
+  final Value<String?> patientName;
+  final Value<int> savedAt;
+  const PatientSavedResultsCompanion({
+    this.id = const Value.absent(),
+    this.shareCode = const Value.absent(),
+    this.patientName = const Value.absent(),
+    this.savedAt = const Value.absent(),
+  });
+  PatientSavedResultsCompanion.insert({
+    this.id = const Value.absent(),
+    required String shareCode,
+    this.patientName = const Value.absent(),
+    required int savedAt,
+  }) : shareCode = Value(shareCode),
+       savedAt = Value(savedAt);
+  static Insertable<PatientSavedResult> custom({
+    Expression<int>? id,
+    Expression<String>? shareCode,
+    Expression<String>? patientName,
+    Expression<int>? savedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (shareCode != null) 'share_code': shareCode,
+      if (patientName != null) 'patient_name': patientName,
+      if (savedAt != null) 'saved_at': savedAt,
+    });
+  }
+
+  PatientSavedResultsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? shareCode,
+    Value<String?>? patientName,
+    Value<int>? savedAt,
+  }) {
+    return PatientSavedResultsCompanion(
+      id: id ?? this.id,
+      shareCode: shareCode ?? this.shareCode,
+      patientName: patientName ?? this.patientName,
+      savedAt: savedAt ?? this.savedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (shareCode.present) {
+      map['share_code'] = Variable<String>(shareCode.value);
+    }
+    if (patientName.present) {
+      map['patient_name'] = Variable<String>(patientName.value);
+    }
+    if (savedAt.present) {
+      map['saved_at'] = Variable<int>(savedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PatientSavedResultsCompanion(')
+          ..write('id: $id, ')
+          ..write('shareCode: $shareCode, ')
+          ..write('patientName: $patientName, ')
+          ..write('savedAt: $savedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $VisualizationsTable visualizations = $VisualizationsTable(this);
   late final $SessionsTable sessions = $SessionsTable(this);
+  late final $PatientSavedResultsTable patientSavedResults =
+      $PatientSavedResultsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1254,6 +1563,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     visualizations,
     sessions,
+    patientSavedResults,
   ];
 }
 
@@ -1853,6 +2163,199 @@ typedef $$SessionsTableProcessedTableManager =
       Session,
       PrefetchHooks Function()
     >;
+typedef $$PatientSavedResultsTableCreateCompanionBuilder =
+    PatientSavedResultsCompanion Function({
+      Value<int> id,
+      required String shareCode,
+      Value<String?> patientName,
+      required int savedAt,
+    });
+typedef $$PatientSavedResultsTableUpdateCompanionBuilder =
+    PatientSavedResultsCompanion Function({
+      Value<int> id,
+      Value<String> shareCode,
+      Value<String?> patientName,
+      Value<int> savedAt,
+    });
+
+class $$PatientSavedResultsTableFilterComposer
+    extends Composer<_$AppDatabase, $PatientSavedResultsTable> {
+  $$PatientSavedResultsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shareCode => $composableBuilder(
+    column: $table.shareCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get patientName => $composableBuilder(
+    column: $table.patientName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get savedAt => $composableBuilder(
+    column: $table.savedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PatientSavedResultsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PatientSavedResultsTable> {
+  $$PatientSavedResultsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shareCode => $composableBuilder(
+    column: $table.shareCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get patientName => $composableBuilder(
+    column: $table.patientName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get savedAt => $composableBuilder(
+    column: $table.savedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PatientSavedResultsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PatientSavedResultsTable> {
+  $$PatientSavedResultsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get shareCode =>
+      $composableBuilder(column: $table.shareCode, builder: (column) => column);
+
+  GeneratedColumn<String> get patientName => $composableBuilder(
+    column: $table.patientName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get savedAt =>
+      $composableBuilder(column: $table.savedAt, builder: (column) => column);
+}
+
+class $$PatientSavedResultsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PatientSavedResultsTable,
+          PatientSavedResult,
+          $$PatientSavedResultsTableFilterComposer,
+          $$PatientSavedResultsTableOrderingComposer,
+          $$PatientSavedResultsTableAnnotationComposer,
+          $$PatientSavedResultsTableCreateCompanionBuilder,
+          $$PatientSavedResultsTableUpdateCompanionBuilder,
+          (
+            PatientSavedResult,
+            BaseReferences<
+              _$AppDatabase,
+              $PatientSavedResultsTable,
+              PatientSavedResult
+            >,
+          ),
+          PatientSavedResult,
+          PrefetchHooks Function()
+        > {
+  $$PatientSavedResultsTableTableManager(
+    _$AppDatabase db,
+    $PatientSavedResultsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PatientSavedResultsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PatientSavedResultsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PatientSavedResultsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> shareCode = const Value.absent(),
+                Value<String?> patientName = const Value.absent(),
+                Value<int> savedAt = const Value.absent(),
+              }) => PatientSavedResultsCompanion(
+                id: id,
+                shareCode: shareCode,
+                patientName: patientName,
+                savedAt: savedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String shareCode,
+                Value<String?> patientName = const Value.absent(),
+                required int savedAt,
+              }) => PatientSavedResultsCompanion.insert(
+                id: id,
+                shareCode: shareCode,
+                patientName: patientName,
+                savedAt: savedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PatientSavedResultsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PatientSavedResultsTable,
+      PatientSavedResult,
+      $$PatientSavedResultsTableFilterComposer,
+      $$PatientSavedResultsTableOrderingComposer,
+      $$PatientSavedResultsTableAnnotationComposer,
+      $$PatientSavedResultsTableCreateCompanionBuilder,
+      $$PatientSavedResultsTableUpdateCompanionBuilder,
+      (
+        PatientSavedResult,
+        BaseReferences<
+          _$AppDatabase,
+          $PatientSavedResultsTable,
+          PatientSavedResult
+        >,
+      ),
+      PatientSavedResult,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1861,4 +2364,6 @@ class $AppDatabaseManager {
       $$VisualizationsTableTableManager(_db, _db.visualizations);
   $$SessionsTableTableManager get sessions =>
       $$SessionsTableTableManager(_db, _db.sessions);
+  $$PatientSavedResultsTableTableManager get patientSavedResults =>
+      $$PatientSavedResultsTableTableManager(_db, _db.patientSavedResults);
 }

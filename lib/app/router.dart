@@ -6,7 +6,7 @@ import '../features/capture/capture_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/patient/patient_home_screen.dart';
-import '../features/patient/patient_results_screen.dart';
+import '../features/patient/patient_saved_results_screen.dart';
 import '../features/patient/patient_shell.dart';
 import '../features/sessions/sessions_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -78,7 +78,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/patient/results',
-          builder: (context, state) => const PatientResultsScreen(),
+          builder: (context, state) => const PatientSavedResultsScreen(),
         ),
       ],
     ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/generation_service.dart';
 import '../../core/models/extraction_result.dart';
-import '../../core/models/generation_job.dart';
+import '../../core/services/analytics_service.dart';
 import '../../core/services/session_service.dart';
 import '../../core/storage/app_database.dart';
 import '../review/review_screen.dart';
@@ -54,10 +54,25 @@ class _GenerateScreenState extends State<GenerateScreen> {
     _sessions = SessionService(db);
 
     if (widget.resumeSessionId != null && widget.resumeVizJobId != null) {
-      // Resuming — skip submission, go straight to polling
+      // Resuming — push ReviewScreen directly; it will poll the in-progress job.
       _sessionId = widget.resumeSessionId;
-      setState(() => _state = const _Processing());
-      _pollJob(widget.resumeVizJobId!, _runCount);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final updated = await Navigator.of(context).push<List<Finding>>(
+          MaterialPageRoute(
+            builder: (_) => ReviewScreen(
+              pendingJobId: widget.resumeVizJobId!,
+              sessionId: _sessionId,
+              findings: _currentFindings,
+              patientName: widget.patientName,
+            ),
+          ),
+        );
+        if (updated != null && mounted) {
+          _currentFindings = updated;
+          _run();
+        }
+      });
     } else {
       _run();
     }
@@ -77,55 +92,28 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
       if (runId != _runCount) return;
 
+      Analytics.generationRequested();
       final jobId = widget.directPrompt != null
           ? await _service.submitDirectPrompt(widget.directPrompt!, patientName: widget.patientName)
           : await _service.submitGeneration(_currentFindings, patientName: widget.patientName);
       await _sessions!.setVizJobId(_sessionId!, jobId);
 
-      if (runId != _runCount) return;
+      if (runId != _runCount || !mounted) return;
 
-      setState(() => _state = const _Processing());
-      _pollJob(jobId, runId);
-    } on GenerationServiceException catch (e) {
-      if (_sessionId != null) await _sessions?.failSession(_sessionId!, e.message);
-      if (mounted && runId == _runCount) setState(() => _state = _Failed(e.message));
-    } catch (e) {
-      final msg = 'An unexpected error occurred: $e';
-      if (_sessionId != null) await _sessions?.failSession(_sessionId!, msg);
-      if (mounted && runId == _runCount) setState(() => _state = _Failed(msg));
-    }
-  }
-
-  Future<void> _pollJob(String jobId, int runId) async {
-    try {
-      await for (final job in _service.pollJob(jobId)) {
-        if (!mounted || runId != _runCount) return;
-        if (job.status == GenerationJobStatus.failed) {
-          final msg = job.error ?? 'Generation failed.';
-          if (_sessionId != null) await _sessions?.failSession(_sessionId!, msg);
-          setState(() => _state = _Failed(msg));
-          return;
-        }
-        if (job.status == GenerationJobStatus.completed) {
-          if (_sessionId != null && job.imageUrl != null) {
-            await _sessions?.completeSession(_sessionId!, imageUrl: job.imageUrl!);
-          }
-          if (!mounted || runId != _runCount) return;
-          final updated = await Navigator.of(context).push<List<Finding>>(
-            MaterialPageRoute(
-              builder: (_) => ReviewScreen(
-                job: job,
-                findings: _currentFindings,
-                patientName: widget.patientName,
-              ),
-            ),
-          );
-          if (updated != null && mounted) {
-            _currentFindings = updated;
-            _run();
-          }
-          return;
-        }
+      // Push ReviewScreen immediately — it polls the job and loads the image itself.
+      final updated = await Navigator.of(context).push<List<Finding>>(
+        MaterialPageRoute(
+          builder: (_) => ReviewScreen(
+            pendingJobId: jobId,
+            sessionId: _sessionId,
+            findings: _currentFindings,
+            patientName: widget.patientName,
+          ),
+        ),
+      );
+      if (updated != null && mounted) {
+        _currentFindings = updated;
+        _run();
       }
     } on GenerationServiceException catch (e) {
       if (_sessionId != null) await _sessions?.failSession(_sessionId!, e.message);
@@ -143,7 +131,7 @@ class _GenerateScreenState extends State<GenerateScreen> {
       _sessionId = null;
     }
     _runCount++;
-    _run();
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -402,7 +390,7 @@ class _StopButton extends StatelessWidget {
         minimumSize: const Size(double.infinity, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: const Text('Stop & Restart'),
+      child: const Text('Cancel'),
     );
   }
 }

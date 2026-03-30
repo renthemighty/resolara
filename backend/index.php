@@ -27,6 +27,9 @@ require_once __DIR__ . '/src/handlers/LogoutHandler.php';
 require_once __DIR__ . '/src/handlers/MedicationsHandler.php';
 require_once __DIR__ . '/src/handlers/ExercisesHandler.php';
 require_once __DIR__ . '/src/handlers/ExplanationHandler.php';
+require_once __DIR__ . '/src/handlers/PatientHandler.php';
+require_once __DIR__ . '/src/handlers/ShareHandler.php';
+require_once __DIR__ . '/src/services/EmailService.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 
@@ -104,6 +107,34 @@ if ($path === '/v1/exercises') {
 
 if ($path === '/v1/explanation') {
     ExplanationHandler::handle();
+}
+
+if ($path === '/v1/patient/register') {
+    PatientHandler::register();
+}
+
+if ($path === '/v1/patient/verify') {
+    PatientHandler::verify();
+}
+
+if ($path === '/v1/share') {
+    ShareHandler::create();
+}
+
+if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})$#i', $path, $m)) {
+    ShareHandler::results($m[1]);
+}
+
+if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/explanation$#i', $path, $m)) {
+    ShareHandler::explanation($m[1]);
+}
+
+if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/exercises$#i', $path, $m)) {
+    ShareHandler::exercises($m[1]);
+}
+
+if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/medications$#i', $path, $m)) {
+    ShareHandler::medications($m[1]);
 }
 
 if ($path === '/v1/visualizations') {

@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/models/captured_report.dart';
-import '../../app/theme/app_theme.dart';
 import '../reader/reader_screen.dart';
 
 class PreviewScreen extends StatelessWidget {
   final CapturedReport report;
+  final bool patientMode;
 
-  const PreviewScreen({super.key, required this.report});
+  const PreviewScreen({super.key, required this.report, this.patientMode = false});
 
   Future<void> _confirm(BuildContext context) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ReaderScreen(report: report)),
+      MaterialPageRoute(builder: (_) => ReaderScreen(report: report, patientMode: patientMode)),
     );
   }
 
@@ -22,7 +21,7 @@ class PreviewScreen extends StatelessWidget {
         title: const Text('Review Image'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Column(
@@ -45,7 +44,7 @@ class PreviewScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => context.go('/home'),
+                  onPressed: () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(

@@ -122,40 +122,64 @@ class _ExercisesReviewScreenState extends State<ExercisesReviewScreen> {
                   : Column(
                       children: [
                         Expanded(
-                          child: ListView(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    bottom: 16, left: 2),
-                                child: Text(
-                                  '${widget.phase.label} phase · '
-                                  'review and adjust before sharing.',
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppTheme.textSecondary),
+                          child: CustomScrollView(
+                            slivers: [
+                              // Phase subtitle header
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      14, 14, 14, 10),
+                                  child: Text(
+                                    '${widget.phase.label} phase · '
+                                    'review and adjust before sharing.',
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.textSecondary),
+                                  ),
                                 ),
                               ),
-                              ..._entries.asMap().entries.map(
-                                    (e) => Padding(
-                                      padding: const EdgeInsets.only(
-                                          bottom: 12),
-                                      child: _ExerciseCard(
-                                        entry: e.value,
-                                        onToggle: () => _toggle(e.key),
-                                        onWatchVideo: () => _openYouTube(
-                                            e.value.exercise.youtubeQuery),
-                                      ),
+
+                              // 2-column exercise grid
+                              SliverPadding(
+                                padding: const EdgeInsets.fromLTRB(
+                                    12, 12, 12, 8),
+                                sliver: SliverGrid(
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) => _ExerciseCard(
+                                      entry: _entries[index],
+                                      onToggle: () => _toggle(index),
+                                      onWatchVideo: () => _openYouTube(
+                                          _entries[index].exercise.youtubeQuery),
                                     ),
+                                    childCount: _entries.length,
                                   ),
-                              const SizedBox(height: 4),
-                              _AddExerciseRow(
-                                controller: _addController,
-                                focusNode:  _addFocus,
-                                onAdd:      _addExercise,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.85,
+                                  ),
+                                ),
                               ),
-                              const SizedBox(height: 16),
+
+                              // Add exercise row
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      12, 4, 12, 0),
+                                  child: _AddExerciseRow(
+                                    controller: _addController,
+                                    focusNode:  _addFocus,
+                                    onAdd:      _addExercise,
+                                  ),
+                                ),
+                              ),
+
+                              // Bottom spacing
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: 16),
+                              ),
                             ],
                           ),
                         ),
@@ -169,7 +193,7 @@ class _ExercisesReviewScreenState extends State<ExercisesReviewScreen> {
   }
 }
 
-// ── Exercise card ─────────────────────────────────────────────────────────────
+// ── Exercise card (grid version) ───────────────────────────────────────────────
 
 class _ExerciseCard extends StatelessWidget {
   final ExerciseEntry entry;
@@ -187,6 +211,8 @@ class _ExerciseCard extends StatelessWidget {
     final isDark   = Theme.of(context).brightness == Brightness.dark;
     final inactive = !entry.active;
     final ex       = entry.exercise;
+    final showVideo = entry.active && ex.youtubeQuery.isNotEmpty;
+
     final textColor = (isDark ? AppTheme.warmStone : AppTheme.emerald)
         .withAlpha(inactive ? 80 : 255);
 
@@ -195,7 +221,7 @@ class _ExerciseCard extends StatelessWidget {
       opacity: inactive ? 0.5 : 1.0,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: inactive
                 ? AppTheme.sage.withAlpha(60)
@@ -206,25 +232,41 @@ class _ExerciseCard extends StatelessWidget {
           ),
           color: isDark ? const Color(0xFF122B21) : AppTheme.lightSurface,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // ── Header row ───────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _CategoryBadge(category: ex.category, inactive: inactive),
-                  const SizedBox(width: 10),
-                  Expanded(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top media block
+                if (showVideo)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(13)),
+                    child: _YouTubePlaceholder(
+                      category: ex.category,
+                      height: 96,
+                      onTap: onWatchVideo,
+                    ),
+                  )
+                else
+                  _CategoryIconBlock(
+                    category: ex.category,
+                    inactive: inactive,
+                  ),
+
+                // Text content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           ex.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: textColor,
                             decoration: inactive
@@ -233,32 +275,41 @@ class _ExerciseCard extends StatelessWidget {
                             decorationColor: textColor,
                           ),
                         ),
-                        if (ex.description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            ex.description,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textSecondary
-                                  .withAlpha(inactive ? 100 : 220),
-                              decoration: inactive
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                              decorationColor: AppTheme.textSecondary,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            _CategoryBadge(
+                                category: ex.category,
+                                inactive: inactive,
+                                size: 28),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                ex.category.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.textSecondary
+                                      .withAlpha(inactive ? 100 : 200),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                         if (ex.repsOrDuration.isNotEmpty ||
                             ex.frequency.isNotEmpty) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             [
                               if (ex.repsOrDuration.isNotEmpty)
                                 ex.repsOrDuration,
                               if (ex.frequency.isNotEmpty) ex.frequency,
                             ].join(' · '),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w500,
                               color: AppTheme.gold
                                   .withAlpha(inactive ? 80 : 200),
@@ -268,51 +319,93 @@ class _ExerciseCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // Toggle button
-                  GestureDetector(
-                    onTap: onToggle,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: inactive
-                            ? AppTheme.sage.withAlpha(30)
-                            : AppTheme.error.withAlpha(25),
-                        border: Border.all(
-                          color: inactive
-                              ? AppTheme.sage
-                              : AppTheme.error,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Icon(
-                        inactive ? Icons.add : Icons.remove,
-                        size: 16,
-                        color:
-                            inactive ? AppTheme.sage : AppTheme.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
 
-            // ── YouTube placeholder ──────────────────────────────────
-            if (entry.active && ex.youtubeQuery.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                child: _YouTubePlaceholder(
-                  category: ex.category,
-                  onTap: onWatchVideo,
+            // Toggle button — top-right overlay
+            Positioned(
+              top: 6,
+              right: 6,
+              child: GestureDetector(
+                onTap: onToggle,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: inactive
+                        ? AppTheme.sage.withAlpha(30)
+                        : AppTheme.error.withAlpha(25),
+                    border: Border.all(
+                      color: inactive ? AppTheme.sage : AppTheme.error,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    inactive ? Icons.add : Icons.remove,
+                    size: 14,
+                    color: inactive ? AppTheme.sage : AppTheme.error,
+                  ),
                 ),
               ),
-            ] else
-              const SizedBox(height: 14),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Category icon block (shown when no video) ─────────────────────────────────
+
+class _CategoryIconBlock extends StatelessWidget {
+  final ExerciseCategory category;
+  final bool inactive;
+
+  const _CategoryIconBlock({
+    required this.category,
+    required this.inactive,
+  });
+
+  Color get _bgColor {
+    switch (category) {
+      case ExerciseCategory.stretch:       return const Color(0xFF1A2E1A);
+      case ExerciseCategory.mobility:      return const Color(0xFF0D2030);
+      case ExerciseCategory.strengthening: return const Color(0xFF1A2420);
+      case ExerciseCategory.rest:          return const Color(0xFF1E1E1E);
+    }
+  }
+
+  Color get _iconColor {
+    switch (category) {
+      case ExerciseCategory.stretch:       return const Color(0xFFB7A46B);
+      case ExerciseCategory.mobility:      return const Color(0xFF5BA3DC);
+      case ExerciseCategory.strengthening: return const Color(0xFF73978C);
+      case ExerciseCategory.rest:          return const Color(0xFF8A8A8A);
+    }
+  }
+
+  IconData get _icon {
+    switch (category) {
+      case ExerciseCategory.stretch:       return Icons.self_improvement_outlined;
+      case ExerciseCategory.mobility:      return Icons.directions_walk_outlined;
+      case ExerciseCategory.strengthening: return Icons.fitness_center_outlined;
+      case ExerciseCategory.rest:          return Icons.hotel_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _iconColor.withAlpha(inactive ? 80 : 255);
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+      child: Container(
+        height: 56,
+        color: _bgColor,
+        child: Center(
+          child: Icon(_icon, size: 24, color: c),
         ),
       ),
     );
@@ -324,15 +417,20 @@ class _ExerciseCard extends StatelessWidget {
 class _CategoryBadge extends StatelessWidget {
   final ExerciseCategory category;
   final bool inactive;
+  final double size;
 
-  const _CategoryBadge({required this.category, required this.inactive});
+  const _CategoryBadge({
+    required this.category,
+    required this.inactive,
+    this.size = 36,
+  });
 
   Color get _color {
     switch (category) {
-      case ExerciseCategory.stretch:       return const Color(0xFFB7A46B); // gold
-      case ExerciseCategory.mobility:      return const Color(0xFF5BA3DC); // blue
-      case ExerciseCategory.strengthening: return const Color(0xFF73978C); // sage
-      case ExerciseCategory.rest:          return const Color(0xFF8A8A8A); // grey
+      case ExerciseCategory.stretch:       return const Color(0xFFB7A46B);
+      case ExerciseCategory.mobility:      return const Color(0xFF5BA3DC);
+      case ExerciseCategory.strengthening: return const Color(0xFF73978C);
+      case ExerciseCategory.rest:          return const Color(0xFF8A8A8A);
     }
   }
 
@@ -349,14 +447,14 @@ class _CategoryBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = _color.withAlpha(inactive ? 80 : 255);
     return Container(
-      width: 36,
-      height: 36,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: c.withAlpha(inactive ? 15 : 25),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(size * 0.28),
         border: Border.all(color: c.withAlpha(inactive ? 40 : 80), width: 1),
       ),
-      child: Icon(_icon, size: 18, color: c),
+      child: Icon(_icon, size: size * 0.5, color: c),
     );
   }
 }
@@ -366,9 +464,13 @@ class _CategoryBadge extends StatelessWidget {
 class _YouTubePlaceholder extends StatelessWidget {
   final ExerciseCategory category;
   final VoidCallback onTap;
+  final double height;
 
-  const _YouTubePlaceholder(
-      {required this.category, required this.onTap});
+  const _YouTubePlaceholder({
+    required this.category,
+    required this.onTap,
+    this.height = 90,
+  });
 
   Color get _bgColor {
     switch (category) {
@@ -384,27 +486,27 @@ class _YouTubePlaceholder extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 90,
+        height: height,
         decoration: BoxDecoration(
           color: _bgColor,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: AppTheme.sage.withAlpha(40), width: 1),
+          border: Border(
+            bottom: BorderSide(color: AppTheme.sage.withAlpha(40), width: 1),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: const Color(0xFFFF0000).withAlpha(200),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.play_arrow_rounded,
-                  color: Colors.white, size: 22),
+                  color: Colors.white, size: 20),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             const Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,16 +514,16 @@ class _YouTubePlaceholder extends StatelessWidget {
                 Text(
                   'Watch on YouTube',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.warmStone,
                   ),
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'Exercise demonstration',
+                  'Exercise demo',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppTheme.textSecondary,
                   ),
                 ),

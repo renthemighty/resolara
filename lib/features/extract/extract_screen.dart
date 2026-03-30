@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/models/extraction_result.dart';
+import '../../core/services/analytics_service.dart';
 import '../options/generation_options_screen.dart';
 
 class ExtractScreen extends StatefulWidget {
   final ExtractionResult extraction;
+  final bool patientMode;
 
-  const ExtractScreen({super.key, required this.extraction});
+  const ExtractScreen({super.key, required this.extraction, this.patientMode = false});
 
   @override
   State<ExtractScreen> createState() => _ExtractScreenState();
@@ -49,6 +51,7 @@ class _ExtractScreenState extends State<ExtractScreen> {
   }
 
   void _confirm() {
+    Analytics.findingsReviewed(findingCount: _findings.length);
     if (_findings.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -63,6 +66,7 @@ class _ExtractScreenState extends State<ExtractScreen> {
           patientName: _labelController.text.trim(),
           extractionTokensIn: widget.extraction.tokensIn,
           extractionTokensOut: widget.extraction.tokensOut,
+          patientMode: widget.patientMode,
         ),
       ),
     );

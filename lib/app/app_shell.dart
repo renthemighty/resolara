@@ -65,9 +65,9 @@ class AppShell extends StatelessWidget {
             },
             destinations: [
               const NavigationDestination(
-                icon: Icon(Icons.camera_alt_outlined),
-                selectedIcon: Icon(Icons.camera_alt),
-                label: 'Capture',
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.auto_awesome_outlined),

@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/ocr_service.dart';
 import '../../core/models/captured_report.dart';
@@ -12,8 +11,9 @@ import '../extract/extract_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   final CapturedReport report;
+  final bool patientMode;
 
-  const ReaderScreen({super.key, required this.report});
+  const ReaderScreen({super.key, required this.report, this.patientMode = false});
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -97,10 +97,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
               .withTokens(job.tokensIn, job.tokensOut);
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => ExtractScreen(extraction: extraction),
+              settings: const RouteSettings(name: '/extract'),
+              builder: (_) => ExtractScreen(extraction: extraction, patientMode: widget.patientMode),
             ),
           );
-          if (mounted) context.go('/home');
+          if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
           return;
         }
       }
@@ -127,7 +128,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   void _stop() {
     _runCount++;
-    _run();
+    Navigator.of(context).pop();
   }
 
   @override
@@ -362,7 +363,7 @@ class _StopButton extends StatelessWidget {
         minimumSize: const Size(double.infinity, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: const Text('Stop & Restart'),
+      child: const Text('Cancel'),
     );
   }
 }

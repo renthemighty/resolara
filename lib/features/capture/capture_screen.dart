@@ -4,13 +4,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/models/captured_report.dart';
+import '../../core/services/analytics_service.dart';
 import '../../shared/widgets/loading_overlay.dart';
 import 'preview_screen.dart';
 import '../reader/reader_screen.dart';
 import '../describe/describe_screen.dart';
 
 class CaptureScreen extends StatefulWidget {
-  const CaptureScreen({super.key});
+  final bool patientMode;
+  const CaptureScreen({super.key, this.patientMode = false});
 
   @override
   State<CaptureScreen> createState() => _CaptureScreenState();
@@ -21,6 +23,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
   String? _error;
 
   Future<void> _handleSource(CaptureSource source) async {
+    final sourceLabel = source == CaptureSource.camera ? 'camera'
+        : source == CaptureSource.photos ? 'library' : 'file';
+    Analytics.captureStarted(sourceLabel);
     setState(() {
       _processing = true;
       _error = null;
@@ -92,8 +97,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => report.isPdf
-              ? ReaderScreen(report: report)
-              : PreviewScreen(report: report),
+              ? ReaderScreen(report: report, patientMode: widget.patientMode)
+              : PreviewScreen(report: report, patientMode: widget.patientMode),
         ),
       );
     } catch (e) {
@@ -176,10 +181,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 OutlinedButton.icon(
                   onPressed: _processing
                       ? null
-                      : () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const DescribeScreen()),
-                          ),
+                      : () {
+                          Analytics.captureStarted('describe');
+                          Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const DescribeScreen()));
+                        },
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Describe Instead'),
                 ),

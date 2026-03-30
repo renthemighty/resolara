@@ -7,6 +7,8 @@ import '../../../app/theme/app_theme.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../core/services/analytics_service.dart';
+import '../../../core/services/session_service.dart';
 import '../../../core/storage/app_database.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -37,6 +39,8 @@ class SettingsScreen extends ConsumerWidget {
 
     if (confirmed != true || !context.mounted) return;
 
+    Analytics.appReset();
+
     // 1. Clear auth tokens and activation code
     await AuthService().clearAll();
 
@@ -51,14 +55,16 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final db = await openAppDatabase();
       await db.delete(db.visualizations).go();
+      await db.delete(db.sessions).go();
     } catch (_) {}
 
-    if (context.mounted) context.go('/activation');
+    if (context.mounted) context.go('/onboarding');
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system;
+    Analytics.log('settings_screen_opened');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -98,8 +104,11 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
               selected: {themeMode},
-              onSelectionChanged: (selection) =>
-                  ref.read(themeModeProvider.notifier).setMode(selection.first),
+              onSelectionChanged: (selection) {
+                  final mode = selection.first;
+                  ref.read(themeModeProvider.notifier).setMode(mode);
+                  Analytics.themeChanged(mode.name);
+                },
             ),
           ),
           const Divider(height: 24),
@@ -121,7 +130,10 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('View your approved visualization history'),
             leading: const Icon(Icons.history_outlined, color: AppTheme.accent),
             trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-            onTap: () => context.push('/history'),
+            onTap: () {
+              Analytics.historyOpened();
+              context.push('/history');
+            },
           ),
           const Divider(height: 24),
           // ── Account ───────────────────────────────────────────────────────
@@ -129,8 +141,9 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Sign Out'),
             leading: const Icon(Icons.logout, color: AppTheme.textSecondary),
             onTap: () async {
+              Analytics.practitionerLoggedOut();
               await AuthService().clearAll();
-              if (context.mounted) context.go('/activation');
+              if (context.mounted) context.go('/onboarding');
             },
           ),
           const Divider(),
@@ -140,7 +153,74 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.delete_forever, color: AppTheme.error),
             onTap: () => _resetEverything(context, ref),
           ),
-          const Divider(),
+          const Divider(height: 24),
+          // ── Usage totals ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              'Usage',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          FutureBuilder<AppDatabase>(
+            future: openAppDatabase(),
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox.shrink();
+              return StreamBuilder<List<Session>>(
+                stream: snap.data!.watchSessions(),
+                builder: (context, snap) {
+                  final sessions = snap.data ?? [];
+                  final totalIn  = sessions.fold<int>(0, (s, e) => s + e.tokensIn);
+                  final totalOut = sessions.fold<int>(0, (s, e) => s + e.tokensOut);
+                  final completed = sessions.where((s) => s.status == 'completed').length;
+                  final totalCost = sessions.fold<double>(
+                      0, (s, e) => s + SessionService.estimateCost(e));
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF1E4535)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              _UsageTile(label: 'Sessions', value: '${sessions.length}'),
+                              _UsageTile(label: 'Completed', value: '$completed'),
+                              _UsageTile(
+                                label: 'Est. Cost',
+                                value: totalCost < 0.001
+                                    ? '—'
+                                    : '\$${totalCost.toStringAsFixed(3)}',
+                                highlight: true,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _UsageTile(label: 'Input tokens', value: _fmt(totalIn)),
+                              _UsageTile(label: 'Output tokens', value: _fmt(totalOut)),
+                              _UsageTile(label: 'Total tokens', value: _fmt(totalIn + totalOut)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const Divider(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
@@ -163,6 +243,43 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _fmt(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+  if (n == 0) return '—';
+  return '$n';
+}
+
+class _UsageTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool highlight;
+  const _UsageTile({required this.label, required this.value, this.highlight = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: highlight ? AppTheme.gold : AppTheme.textPrimary,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
           ),
         ],
       ),

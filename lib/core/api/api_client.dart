@@ -7,6 +7,8 @@ class ApiClient {
   late final Dio _dio;
   final AuthService _auth = AuthService();
 
+  late final Dio _dioNoAuth;
+
   ApiClient._() {
     _dio = Dio(BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
@@ -23,9 +25,17 @@ class ApiClient {
         handler.next(options);
       },
     ));
+
+    // Unauthenticated client for public patient endpoints
+    _dioNoAuth = Dio(BaseOptions(
+      baseUrl: AppConfig.apiBaseUrl,
+      connectTimeout: AppConfig.connectTimeout,
+      receiveTimeout: AppConfig.receiveTimeout,
+    ));
   }
 
   static ApiClient get instance => _instance ??= ApiClient._();
 
-  Dio get dio => _dio;
+  Dio get dio       => _dio;
+  Dio get dioNoAuth => _dioNoAuth;
 }

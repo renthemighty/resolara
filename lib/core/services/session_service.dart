@@ -56,16 +56,14 @@ class SessionService {
 
   Future<void> completeSession(String sessionId, {
     required String imageUrl,
-    int tokensIn = 0,
-    int tokensOut = 0,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Do NOT update tokensIn/tokensOut here — they were saved at createSession
+    // from extraction and must not be overwritten with zeros.
     await _db.updateSession(SessionsCompanion(
       id: Value(sessionId),
       status: const Value('completed'),
       imageUrl: Value(imageUrl),
-      tokensIn: Value(tokensIn),
-      tokensOut: Value(tokensOut),
       updatedAt: Value(now),
     ));
   }

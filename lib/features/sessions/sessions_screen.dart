@@ -1,8 +1,15 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/share_service.dart';
+import '../../core/services/analytics_service.dart';
 import '../../core/services/session_service.dart';
 import '../../core/storage/app_database.dart';
 import '../generate/generate_screen.dart';
@@ -42,7 +49,49 @@ class _SessionsScreenState extends State<SessionsScreen> {
         ],
       ),
     );
-    if (confirmed == true) await db.deleteSession(session.id);
+    if (confirmed != true || !mounted) return;
+    Analytics.sessionDeleted();
+    try {
+      await db.deleteSession(session.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete session: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAllSessions(AppDatabase db) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear all sessions?'),
+        content: const Text('This will remove all session records. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    Analytics.sessionsCleared();
+    try {
+      await db.delete(db.sessions).go();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not clear sessions: $e')),
+        );
+      }
+    }
   }
 
   void _resumeSession(Session session) {
@@ -60,6 +109,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
   }
 
   void _viewSession(Session session) {
+    Analytics.sessionOpened();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -71,65 +121,78 @@ class _SessionsScreenState extends State<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sessions')),
       body: FutureBuilder<AppDatabase>(
         future: _dbFuture,
         builder: (context, snap) {
           if (!snap.hasData) {
-            return const Center(
-                child: CircularProgressIndicator(color: AppTheme.accent));
+            return Scaffold(
+              appBar: AppBar(title: const Text('Sessions')),
+              body: const Center(
+                  child: CircularProgressIndicator(color: AppTheme.accent)),
+            );
           }
           final db = snap.data!;
           return StreamBuilder<List<Session>>(
             stream: db.watchSessions(),
             builder: (context, snap) {
               if (!snap.hasData) {
-                return const Center(
-                    child: CircularProgressIndicator(color: AppTheme.accent));
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Sessions')),
+                  body: const Center(
+                      child: CircularProgressIndicator(color: AppTheme.accent)),
+                );
               }
               final sessions = snap.data!;
-              if (sessions.isEmpty) return const _EmptySessions();
-
-              // Split into active and recent
-              final active =
-                  sessions.where((s) => s.status == 'generating').toList();
-              final recent =
-                  sessions.where((s) => s.status != 'generating').toList();
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (active.isNotEmpty) ...[
-                    _SectionHeader(
-                        icon: Icons.sync_outlined,
-                        label: 'Active (${active.length})'),
-                    const SizedBox(height: 8),
-                    ...active.map((s) => _SessionCard(
-                          session: s,
-                          onResume: () => _resumeSession(s),
-                          onDelete: () => _deleteSession(db, s),
-                        )),
-                    const SizedBox(height: 16),
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text('Sessions'),
+                  actions: [
+                    if (sessions.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.delete_sweep_outlined),
+                        tooltip: 'Clear all',
+                        onPressed: () => _deleteAllSessions(db),
+                      ),
                   ],
-                  if (recent.isNotEmpty) ...[
-                    _SectionHeader(
-                        icon: Icons.history_outlined,
-                        label: 'Recent (${recent.length})'),
-                    const SizedBox(height: 8),
-                    ...recent.map((s) => _SessionCard(
-                          session: s,
-                          onView: () => _viewSession(s),
-                          onDelete: () => _deleteSession(db, s),
-                        )),
-                  ],
-                  const SizedBox(height: 32),
-                  _TotalsCard(sessions: sessions),
-                ],
+                ),
+                body: sessions.isEmpty ? const _EmptySessions() : _buildList(db, sessions),
               );
             },
           );
         },
       ),
+    );
+  }
+
+  Widget _buildList(AppDatabase db, List<Session> sessions) {
+    final active = sessions.where((s) => s.status == 'generating').toList();
+    final recent = sessions.where((s) => s.status != 'generating').toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (active.isNotEmpty) ...[
+          _SectionHeader(icon: Icons.sync_outlined, label: 'Active (${active.length})'),
+          const SizedBox(height: 8),
+          ...active.map((s) => _SessionCard(
+                session: s,
+                onResume: () => _resumeSession(s),
+                onDelete: () => _deleteSession(db, s),
+              )),
+          const SizedBox(height: 16),
+        ],
+        if (recent.isNotEmpty) ...[
+          _SectionHeader(icon: Icons.history_outlined, label: 'Recent (${recent.length})'),
+          const SizedBox(height: 8),
+          ...recent.map((s) => _SessionCard(
+                session: s,
+                onView: () => _viewSession(s),
+                onDelete: () => _deleteSession(db, s),
+              )),
+        ],
+        const SizedBox(height: 32),
+        _TotalsCard(sessions: sessions),
+      ],
     );
   }
 }
@@ -509,6 +572,77 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
     }
   }
 
+  Future<void> _share() async {
+    final bytes = _imageBytes;
+    if (bytes == null) return;
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/resolara_session.png');
+    await file.writeAsBytes(bytes);
+    Analytics.imageShared();
+    await Share.shareXFiles([XFile(file.path)], text: 'Resolara visualization');
+  }
+
+  bool _sharing = false;
+
+  Future<void> _shareWithPatient() async {
+    if (_sharing) return;
+    _sharing = true;
+    final session  = widget.session;
+    final imageUrl = session.imageUrl;
+    if (imageUrl == null) { _sharing = false; return; }
+
+    final findings = session.findingsJson != null
+        ? SessionService.decodeFindings(session.findingsJson!)
+            .map((f) => <String, dynamic>{'id': f.id, 'body_region': f.bodyRegion, 'finding': f.text, 'layman_term': f.laymanTerm})
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    // Show loading indicator — capture navigator before async gap so we can
+    // always dismiss the dialog even if the widget unmounts mid-call.
+    String? code;
+    String? err;
+    NavigatorState? loadingNav;
+    if (mounted) {
+      loadingNav = Navigator.of(context, rootNavigator: true);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+    }
+    try {
+      code = await ShareService().createShare(
+        imageUrl:    imageUrl,
+        findings:    findings,
+        patientName: null,
+      );
+    } on ShareServiceException catch (e) {
+      err = e.message;
+    } catch (_) {
+      err = 'Could not create share link. Please try again.';
+    }
+    _sharing = false;
+    // Dismiss dialog regardless of mounted state — dialog was pushed on root
+    // navigator and must always be popped or it hangs on screen.
+    try { loadingNav?.pop(); } catch (_) {}
+    if (!mounted) return;
+
+    if (err != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+
+    Analytics.shareCreated();
+    showModalBottomSheet(
+      context:     context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _ShareCodeSheet(code: code!),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = widget.session;
@@ -563,6 +697,20 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (widget.session.imageUrl != null)
+                      IconButton(
+                        icon: const Icon(Icons.qr_code_outlined,
+                            size: 20, color: AppTheme.gold),
+                        onPressed: _shareWithPatient,
+                        tooltip: 'Share with Patient',
+                      ),
+                    if (_imageBytes != null)
+                      IconButton(
+                        icon: const Icon(Icons.ios_share_outlined,
+                            size: 20, color: AppTheme.gold),
+                        onPressed: _share,
+                        tooltip: 'Share image',
+                      ),
                     IconButton(
                       icon: const Icon(Icons.close,
                           size: 20, color: AppTheme.textSecondary),
@@ -736,6 +884,99 @@ class _InfoChip extends StatelessWidget {
           fontWeight: FontWeight.w500,
           color: highlight ? AppTheme.gold : AppTheme.textSecondary,
         ),
+      ),
+    );
+  }
+}
+
+// ── Share-with-patient QR sheet ───────────────────────────────────────────────
+
+class _ShareCodeSheet extends StatelessWidget {
+  final String code;
+  const _ShareCodeSheet({required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    // QR encodes the bare code — patient app strips formatting
+    final qrData = code;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: AppTheme.sage.withAlpha(100),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Text('Share with Patient',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          const Text(
+              'Show this QR code to your patient, or give them the code below.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+          const SizedBox(height: 24),
+
+          // QR code
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: QrImageView(
+              data:            qrData,
+              version:         QrVersions.auto,
+              size:            200,
+              backgroundColor: Colors.white,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Share code
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: code));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Code copied to clipboard')));
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              decoration: BoxDecoration(
+                color:        AppTheme.emerald.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+                border:       Border.all(color: AppTheme.emerald.withAlpha(80)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(code,
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 3,
+                          color: AppTheme.emerald)),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.copy_outlined, size: 18, color: AppTheme.emerald),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          const Text('Tap code to copy · Valid for 30 days',
+              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

@@ -1,7 +1,7 @@
 name: resolara
 description: Resolara — mobile-first clinical visualization for licensed healthcare professionals.
 publish_to: 'none'
-version: 1.3.2+47
+version: 1.4.0+1
 
 environment:
   sdk: ^3.10.8

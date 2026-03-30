@@ -36,5 +36,6 @@ Future<Uint8List> stampPatientLabel(Uint8List imageBytes, String label) async {
   final picture = recorder.endRecording();
   final img = await picture.toImage(src.width, src.height);
   final bd = await img.toByteData(format: ui.ImageByteFormat.png);
-  return bd!.buffer.asUint8List();
+  if (bd == null) return imageBytes; // fallback: return original if encoding fails
+  return bd.buffer.asUint8List();
 }

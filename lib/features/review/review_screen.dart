@@ -193,7 +193,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
         setState(() => _imageState = const _ImageFailed('Could not load image.'));
         return;
       }
-      if (mounted) setState(() => _imageState = _ImageReady(response.data!));
+      if (mounted) {
+        setState(() => _imageState = _ImageReady(response.data!));
+        _loadExplanations();
+      }
     } catch (e) {
       if (mounted) setState(() => _imageState = _ImageFailed('Failed to load: $e'));
     }
@@ -255,7 +258,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         _explanations = results;
         _patientExplanationIds.addAll(results.map((e) => e.id));
         _explanationLoading = false;
+        _explanationExpanded = true;
       });
+      _loadExercises(RecoveryPhase.acute);
     } on ExplanationServiceException catch (e) {
       if (mounted) setState(() { _explanationError = e.message; _explanationLoading = false; });
     } catch (_) {
@@ -275,7 +280,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         _exercises = entries;
         _patientExerciseIds.addAll(entries.where((e) => e.active).map((e) => e.exercise.id));
         _exercisesLoading = false;
+        _exercisesExpanded = true;
       });
+      _loadMedications();
     } on ExercisesServiceException catch (e) {
       if (mounted) setState(() { _exercisesError = e.message; _exercisesLoading = false; });
     } catch (_) {
@@ -321,6 +328,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       setState(() {
         _medications = meds.map((m) => MedicationEntry(medication: m)).toList();
         _medicationsLoading = false;
+        _medicationsExpanded = true;
       });
     } on MedicationsServiceException catch (e) {
       if (mounted) setState(() { _medicationsError = e.message; _medicationsLoading = false; });

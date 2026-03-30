@@ -157,7 +157,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
             padding: const EdgeInsets.all(32),
             child: switch (_state) {
               _Submitting() => _SubmittingView(onStop: _stop),
-              _Processing() => _ProcessingView(onStop: _stop),
               _Failed(message: final msg) => _FailedView(
                   message: msg,
                   onRetry: _run,
@@ -175,7 +174,6 @@ class _GenerateScreenState extends State<GenerateScreen> {
 
 sealed class _GenState { const _GenState(); }
 class _Submitting extends _GenState { const _Submitting(); }
-class _Processing extends _GenState { const _Processing(); }
 class _Failed extends _GenState {
   final String message;
   const _Failed(this.message);
@@ -199,41 +197,6 @@ class _SubmittingView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 24),
-        const LinearProgressIndicator(
-          backgroundColor: Color(0x1AB7A46B),
-          color: AppTheme.accent,
-          minHeight: 8,
-          borderRadius: BorderRadius.all(Radius.circular(4)),
-        ),
-        const SizedBox(height: 32),
-        _StopButton(onStop: onStop),
-      ],
-    );
-  }
-}
-
-class _ProcessingView extends StatelessWidget {
-  final VoidCallback onStop;
-  const _ProcessingView({required this.onStop});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Icon(Icons.auto_awesome_outlined, size: 64, color: AppTheme.accent),
-        const SizedBox(height: 24),
-        const Text('Generating visualization…',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        const Text(
-          'Creating an anatomical illustration based on the confirmed findings.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.textSecondary),
-        ),
-        const SizedBox(height: 32),
         const LinearProgressIndicator(
           backgroundColor: Color(0x1AB7A46B),
           color: AppTheme.accent,

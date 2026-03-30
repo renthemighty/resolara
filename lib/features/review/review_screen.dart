@@ -61,6 +61,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   GenerationJob? _resolvedJob;
   bool _jobPolling = false;
   String? _jobError;
+  int _pollGen = 0; // incremented on each poll start; stale continuations bail out
 
   // ── Image Visualization section ────────────────────────────────────────────
   _ImageState _imageState = const _ImageLoading();
@@ -124,9 +125,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // ── Job polling (used when navigated to before job completes) ─────────────
 
   Future<void> _pollJob(String jobId) async {
+    final gen = ++_pollGen;
     try {
       await for (final job in _genService.pollJob(jobId)) {
-        if (!mounted) return;
+        if (!mounted || gen != _pollGen) return;
+
         if (job.status == GenerationJobStatus.failed) {
           final msg = job.error ?? 'Generation failed.';
           Analytics.generationFailed(reason: msg);
@@ -137,31 +140,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
           });
           return;
         }
+
         if (job.status == GenerationJobStatus.completed) {
           Analytics.generationCompleted();
           _resolvedJob = job;
           if (widget.sessionId != null && job.imageUrl != null) {
             final db = await openAppDatabase();
+            if (!mounted || gen != _pollGen) return; // check after first await
             await SessionService(db).completeSession(widget.sessionId!, imageUrl: job.imageUrl!);
+            if (!mounted || gen != _pollGen) return; // check after second await
           }
-          if (!mounted) return;
-          setState(() => _jobPolling = false);
+          setState(() { _jobPolling = false; _jobError = null; });
           _loadImage();
           return;
         }
       }
     } on GenerationServiceException catch (e) {
-      if (mounted) setState(() {
+      if (mounted && gen == _pollGen) setState(() {
         _jobPolling = false;
         _jobError = e.message;
         _imageState = _ImageFailed(e.message);
       });
     } catch (e) {
-      if (mounted) setState(() {
+      if (mounted && gen == _pollGen) setState(() {
         _jobPolling = false;
         _jobError = 'Generation failed.';
         _imageState = _ImageFailed('Generation failed.');
       });
+    } finally {
+      // Safety net: _jobPolling must always be cleared even on unexpected exits
+      if (mounted && gen == _pollGen && _jobPolling) {
+        setState(() => _jobPolling = false);
+      }
     }
   }
 
@@ -197,7 +207,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Leave this review?'),
-        content: const Text('The visualization has not been saved yet.'),
+        content: Text(_jobPolling
+            ? 'The visualization is still generating and will not be saved if you leave.'
+            : 'The visualization has not been saved yet.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Stay')),
           TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Leave')),
@@ -365,7 +377,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final dest = File(p.join(savedDir.path, filename));
       await SecureFileStorage.writeEncrypted(dest, imageBytes);
       final db = await openAppDatabase();
-      final resolvedJob = _resolvedJob ?? widget.job!;
+      final resolvedJob = _resolvedJob ?? widget.job;
+      if (resolvedJob == null) {
+        if (mounted) {
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cannot save: visualization data missing.')));
+        }
+        return;
+      }
       final regions = _editableFindings.map((f) => f.bodyRegion).toSet().toList().join(',');
       await db.insertVisualization(VisualizationsCompanion(
         jobId: Value(resolvedJob.jobId),
@@ -498,7 +517,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           state: _imageState,
                           jobPolling: _jobPolling,
                           onRetry: _jobPolling ? null : _loadImage,
-                          onRetryJob: _jobError != null
+                          onRetryJob: (_jobError != null && widget.pendingJobId != null)
                               ? () {
                                   setState(() {
                                     _jobPolling = true;

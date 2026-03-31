@@ -70,7 +70,7 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.addColumn(visualizations, visualizations.patientLabel);
           }
-          if (from < 4) {
+          if (from >= 2 && from < 4) {
             await m.addColumn(sessions, sessions.tokensIn);
             await m.addColumn(sessions, sessions.tokensOut);
           }

@@ -282,7 +282,7 @@ class _PollingView extends StatelessWidget {
         const Icon(Icons.shield_outlined, size: 64, color: AppTheme.primary),
         const SizedBox(height: 24),
         const Text(
-          'Sending report text…',
+          'Extracting report text…',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),

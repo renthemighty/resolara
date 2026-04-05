@@ -1,67 +1,12 @@
-import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'app/router.dart';
-import 'app/theme/app_theme.dart';
-import 'core/auth/auth_service.dart';
-import 'core/config/app_config.dart';
-import 'core/providers/theme_provider.dart';
-import 'firebase_options.dart';
+// Platform dispatcher — picks the correct entry point at compile time.
+//
+// On native (iOS/Android), `dart.library.js_interop` is not available, so
+// `mobile_entry.dart` is loaded and its main() runs the full mobile app.
+// When Flutter Web compiles this file, `dart.library.js_interop` resolves
+// and `web_entry.dart` is loaded instead — which only boots the clinic
+// PWA and never touches Drift, path_provider, Firebase, or camera plugins.
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+import 'app/platform_entry/mobile_entry.dart'
+    if (dart.library.js_interop) 'app/platform_entry/web_entry.dart' as entry;
 
-  // Firebase init is non-fatal — app must launch even if it fails
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
-  } catch (_) {
-    // Firebase unavailable — continue without analytics/crashlytics
-  }
-
-  await _clearKeychainOnFreshInstall();
-  await AppConfig.loadServerOverride();
-  runApp(const ProviderScope(child: Resolara()));
-}
-
-/// iOS Keychain data survives app deletion. On a fresh install (no marker
-/// file present) we wipe secure storage so the user is always logged out.
-Future<void> _clearKeychainOnFreshInstall() async {
-  try {
-    final dir    = await getApplicationSupportDirectory();
-    final marker = File('${dir.path}/.launched');
-    if (!marker.existsSync()) {
-      await AuthService().clearAll();
-      await marker.create(recursive: true);
-    }
-  } catch (_) {
-    // non-fatal — proceed normally
-  }
-}
-
-class Resolara extends ConsumerWidget {
-  const Resolara({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system;
-    return MaterialApp.router(
-      title: 'Resolara',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: themeMode,
-      routerConfig: appRouter,
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
+Future<void> main() => entry.main();

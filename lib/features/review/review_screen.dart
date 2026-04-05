@@ -40,6 +40,12 @@ class ReviewScreen extends StatefulWidget {
   final String? sessionId;
   final List<Finding> findings;
   final String patientName;
+  /// When set, ReviewScreen submits a direct text prompt instead of findings.
+  final String? directPrompt;
+  /// Token counts from extraction — stored in the session when ReviewScreen
+  /// creates the session itself (i.e. when neither job nor pendingJobId is set).
+  final int extractionTokensIn;
+  final int extractionTokensOut;
 
   const ReviewScreen({
     super.key,
@@ -48,8 +54,13 @@ class ReviewScreen extends StatefulWidget {
     this.sessionId,
     required this.findings,
     this.patientName = '',
-  }) : assert(job != null || pendingJobId != null,
-            'Either job or pendingJobId must be provided');
+    this.directPrompt,
+    this.extractionTokensIn = 0,
+    this.extractionTokensOut = 0,
+  }) : assert(
+          job != null || pendingJobId != null || findings.length > 0,
+          'Either job, pendingJobId, or non-empty findings must be provided',
+        );
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -62,10 +73,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _jobPolling = false;
   String? _jobError;
   int _pollGen = 0; // incremented on each poll start; stale continuations bail out
+  // Set when ReviewScreen submits the job itself (no pendingJobId passed in).
+  String? _localSessionId;
+  String? _localPendingJobId;
 
   // ── Image Visualization section ────────────────────────────────────────────
   _ImageState _imageState = const _ImageLoading();
-  bool _imageExpanded = true;
+  bool _imageExpanded = false;
   late List<Finding> _editableFindings;
 
   // ── Explanation ────────────────────────────────────────────────────────────
@@ -105,9 +119,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (widget.pendingJobId != null) {
       _jobPolling = true;
       _pollJob(widget.pendingJobId!);
-    } else {
+    } else if (widget.job != null) {
       _resolvedJob = widget.job;
       _loadImage();
+    } else {
+      // New mode: ReviewScreen submits the job itself and polls in the background.
+      // Deferred to post-frame so setState in _submitAndPoll is safe.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _submitAndPoll();
+      });
     }
   }
 
@@ -120,6 +140,46 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _medAddController.dispose();
     _medAddFocus.dispose();
     super.dispose();
+  }
+
+  // ── Submit + poll (used when ReviewScreen creates the job itself) ──────────
+
+  Future<void> _submitAndPoll() async {
+    setState(() { _jobPolling = true; _jobError = null; });
+    try {
+      final db = await openAppDatabase();
+      if (!mounted) return;
+      final sessions = SessionService(db);
+      final sessionId = await sessions.createSession(
+        findings: _editableFindings,
+        tokensIn: widget.extractionTokensIn,
+        tokensOut: widget.extractionTokensOut,
+      );
+      if (!mounted) return;
+      _localSessionId = sessionId;
+      Analytics.generationRequested();
+      final jobId = widget.directPrompt != null
+          ? await _genService.submitDirectPrompt(widget.directPrompt!, patientName: widget.patientName)
+          : await _genService.submitGeneration(_editableFindings, patientName: widget.patientName);
+      if (!mounted) return;
+      await sessions.setVizJobId(sessionId, jobId);
+      if (!mounted) return;
+      _localPendingJobId = jobId;
+      _pollJob(jobId);
+    } on GenerationServiceException catch (e) {
+      if (mounted) setState(() {
+        _jobPolling = false;
+        _jobError = e.message;
+        _imageState = _ImageFailed(e.message);
+      });
+    } catch (e) {
+      final msg = '${e.runtimeType}: $e';
+      if (mounted) setState(() {
+        _jobPolling = false;
+        _jobError = msg;
+        _imageState = _ImageFailed(msg);
+      });
+    }
   }
 
   // ── Job polling (used when navigated to before job completes) ─────────────
@@ -144,10 +204,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (job.status == GenerationJobStatus.completed) {
           Analytics.generationCompleted();
           _resolvedJob = job;
-          if (widget.sessionId != null && job.imageUrl != null) {
+          final sessionId = widget.sessionId ?? _localSessionId;
+          if (sessionId != null && job.imageUrl != null) {
             final db = await openAppDatabase();
             if (!mounted || gen != _pollGen) return; // check after first await
-            await SessionService(db).completeSession(widget.sessionId!, imageUrl: job.imageUrl!);
+            await SessionService(db).completeSession(sessionId, imageUrl: job.imageUrl!);
             if (!mounted || gen != _pollGen) return; // check after second await
           }
           setState(() { _jobPolling = false; _jobError = null; });
@@ -194,7 +255,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
         return;
       }
       if (mounted) {
-        setState(() => _imageState = _ImageReady(response.data!));
+        setState(() {
+          _imageState = _ImageReady(response.data!);
+          _imageExpanded = true;
+        });
         _loadExplanations();
       }
     } catch (e) {
@@ -256,7 +320,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
       if (!mounted) return;
       setState(() {
         _explanations = results;
-        _patientExplanationIds.addAll(results.map((e) => e.id));
         _explanationLoading = false;
         _explanationExpanded = true;
       });
@@ -278,7 +341,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final entries = results.map((e) => ExerciseEntry(exercise: e)).toList();
       setState(() {
         _exercises = entries;
-        _patientExerciseIds.addAll(entries.where((e) => e.active).map((e) => e.exercise.id));
         _exercisesLoading = false;
         _exercisesExpanded = true;
       });
@@ -359,10 +421,117 @@ class _ReviewScreenState extends State<ReviewScreen> {
           name: name, purpose: 'Added by practitioner.',
           typicalDosing: '', aiSuggested: false,
         ),
+        active: true,
       ));
       _medAddController.clear();
     });
     _medAddFocus.unfocus();
+  }
+
+  void _editExerciseDetails(int i, String reps, String freq) {
+    setState(() {
+      final entry = _exercises[i];
+      entry.customRepsOrDuration = reps.trim().isEmpty ? null : reps.trim();
+      entry.customFrequency      = freq.trim().isEmpty ? null : freq.trim();
+    });
+  }
+
+  Future<void> _showExerciseEditDialog(int i) async {
+    final entry   = _exercises[i];
+    final repsCtl = TextEditingController(text: entry.effectiveRepsOrDuration);
+    final freqCtl = TextEditingController(text: entry.effectiveFrequency);
+    final nav     = Navigator.of(context, rootNavigator: true);
+
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Text(entry.exercise.name,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.warmStone)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: repsCtl,
+              autofocus: true,
+              style: const TextStyle(fontSize: 13, color: AppTheme.warmStone),
+              decoration: InputDecoration(
+                labelText: 'Reps / Duration',
+                labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                hintText: 'e.g. 10 reps, 3 sets',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: freqCtl,
+              style: const TextStyle(fontSize: 13, color: AppTheme.warmStone),
+              decoration: InputDecoration(
+                labelText: 'Frequency',
+                labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                hintText: 'e.g. 3 times daily',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onSubmitted: (_) => nav.pop((repsCtl.text, freqCtl.text)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => nav.pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => nav.pop((repsCtl.text, freqCtl.text)),
+            child: const Text('Save', style: TextStyle(color: AppTheme.gold)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (result != null) _editExerciseDetails(i, result.$1, result.$2);
+  }
+
+  void _editMedDosage(int i, String dosage) {
+    setState(() => _medications[i].customDosage = dosage.trim().isEmpty ? null : dosage.trim());
+  }
+
+  Future<void> _showDosageEditDialog(int i) async {
+    final entry = _medications[i];
+    final controller = TextEditingController(text: entry.effectiveDosing);
+    final nav = Navigator.of(context, rootNavigator: true);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: Text(entry.medication.name,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.warmStone)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(fontSize: 13, color: AppTheme.warmStone),
+          decoration: InputDecoration(
+            labelText: 'Dosage',
+            labelStyle: const TextStyle(color: AppTheme.textSecondary),
+            hintText: 'e.g. 400 mg, twice daily with food',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onSubmitted: (_) => nav.pop(controller.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => nav.pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => nav.pop(controller.text),
+            child: const Text('Save', style: TextStyle(color: AppTheme.gold)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (result != null) _editMedDosage(i, result);
   }
 
   // ── Approve ────────────────────────────────────────────────────────────────
@@ -439,11 +608,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
               .toList(),
           exercises: _exercises
               .where((e) => _patientExerciseIds.contains(e.exercise.id))
-              .map((e) => e.exercise.toJson())
+              .map((e) => e.toJson())
               .toList(),
           medications: _medications
               .where((m) => m.active)
-              .map((m) => m.medication.toJson())
+              .map((m) => m.toJson())
               .toList(),
         );
         Analytics.shareCreated();
@@ -537,14 +706,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           state: _imageState,
                           jobPolling: _jobPolling,
                           onRetry: _jobPolling ? null : _loadImage,
-                          onRetryJob: (_jobError != null && widget.pendingJobId != null)
+                          onRetryJob: _jobError != null
                               ? () {
-                                  setState(() {
-                                    _jobPolling = true;
-                                    _jobError = null;
-                                    _imageState = const _ImageLoading();
-                                  });
-                                  _pollJob(widget.pendingJobId!);
+                                  final jobId = _localPendingJobId ?? widget.pendingJobId;
+                                  if (jobId != null) {
+                                    setState(() {
+                                      _jobPolling = true;
+                                      _jobError = null;
+                                      _imageState = const _ImageLoading();
+                                    });
+                                    _pollJob(jobId);
+                                  } else {
+                                    _submitAndPoll();
+                                  }
                                 }
                               : null,
                           onFullscreen: () {
@@ -610,6 +784,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             }
                           }),
                           onWatchVideo: _openYouTube,
+                          onEditDetails: _showExerciseEditDialog,
                           onAdd: _addExercise,
                           onRetry: _exercisePhase != null ? () => _loadExercises(_exercisePhase!) : null,
                         ),
@@ -635,6 +810,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           addFocus: _medAddFocus,
                           onToggle: _toggleMedication,
                           onToggleTime: _toggleMedTime,
+                          onEditDosage: _showDosageEditDialog,
                           onAdd: _addMedication,
                           onRetry: _loadMedications,
                         ),
@@ -1031,6 +1207,7 @@ class _ExercisesContent extends StatelessWidget {
   final void Function(int) onToggleExercise;
   final void Function(String) onTogglePatient;
   final void Function(String) onWatchVideo;
+  final void Function(int) onEditDetails;
   final VoidCallback onAdd;
   final VoidCallback? onRetry;
 
@@ -1046,6 +1223,7 @@ class _ExercisesContent extends StatelessWidget {
     required this.onToggleExercise,
     required this.onTogglePatient,
     required this.onWatchVideo,
+    required this.onEditDetails,
     required this.onAdd,
     required this.onRetry,
   });
@@ -1135,6 +1313,7 @@ class _ExercisesContent extends StatelessWidget {
               onToggle: () => onToggleExercise(i),
               onTogglePatient: () => onTogglePatient(exercises[i].exercise.id),
               onWatch: () => onWatchVideo(exercises[i].exercise.youtubeQuery),
+              onEditDetails: () => onEditDetails(i),
             ),
           ),
           const SizedBox(height: 10),
@@ -1244,6 +1423,7 @@ class _ExercisePatientCard extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onTogglePatient;
   final VoidCallback onWatch;
+  final VoidCallback onEditDetails;
 
   const _ExercisePatientCard({
     required this.entry,
@@ -1251,6 +1431,7 @@ class _ExercisePatientCard extends StatelessWidget {
     required this.onToggle,
     required this.onTogglePatient,
     required this.onWatch,
+    required this.onEditDetails,
   });
 
   @override
@@ -1333,11 +1514,35 @@ class _ExercisePatientCard extends StatelessWidget {
                             decoration: inactive ? TextDecoration.lineThrough : TextDecoration.none,
                           ),
                         ),
-                        if (ex.repsOrDuration.isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text(ex.repsOrDuration,
-                              style: TextStyle(fontSize: 10,
-                                  color: AppTheme.gold.withAlpha(inactive ? 80 : 180))),
+                        if (entry.effectiveRepsOrDuration.isNotEmpty ||
+                            entry.effectiveFrequency.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: inactive ? null : onEditDetails,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (entry.effectiveRepsOrDuration.isNotEmpty)
+                                        Text(entry.effectiveRepsOrDuration,
+                                            style: TextStyle(fontSize: 10,
+                                                color: AppTheme.gold.withAlpha(inactive ? 80 : 180))),
+                                      if (entry.effectiveFrequency.isNotEmpty)
+                                        Text(entry.effectiveFrequency,
+                                            style: TextStyle(fontSize: 10,
+                                                color: AppTheme.textSecondary.withAlpha(inactive ? 80 : 180))),
+                                    ],
+                                  ),
+                                ),
+                                if (!inactive)
+                                  Icon(Icons.edit_outlined, size: 10,
+                                      color: AppTheme.gold.withAlpha(130)),
+                              ],
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -1419,6 +1624,7 @@ class _MedicationsContent extends StatelessWidget {
   final FocusNode addFocus;
   final void Function(int) onToggle;
   final void Function(int, DoseTime) onToggleTime;
+  final void Function(int) onEditDosage;
   final VoidCallback onAdd;
   final VoidCallback onRetry;
 
@@ -1430,6 +1636,7 @@ class _MedicationsContent extends StatelessWidget {
     required this.addFocus,
     required this.onToggle,
     required this.onToggleTime,
+    required this.onEditDosage,
     required this.onAdd,
     required this.onRetry,
   });
@@ -1474,6 +1681,7 @@ class _MedicationsContent extends StatelessWidget {
               entry: e.value,
               onToggle: () => onToggle(e.key),
               onToggleTime: (t) => onToggleTime(e.key, t),
+              onEditDosage: () => onEditDosage(e.key),
             ),
           )),
           const SizedBox(height: 4),
@@ -1523,8 +1731,14 @@ class _MedCard extends StatelessWidget {
   final MedicationEntry entry;
   final VoidCallback onToggle;
   final void Function(DoseTime) onToggleTime;
+  final VoidCallback onEditDosage;
 
-  const _MedCard({required this.entry, required this.onToggle, required this.onToggleTime});
+  const _MedCard({
+    required this.entry,
+    required this.onToggle,
+    required this.onToggleTime,
+    required this.onEditDosage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1569,12 +1783,24 @@ class _MedCard extends StatelessWidget {
                                 decoration: inactive ? TextDecoration.lineThrough : TextDecoration.none,
                                 decorationColor: AppTheme.textSecondary)),
                       ],
-                      if (entry.medication.typicalDosing.isNotEmpty) ...[
+                      if (entry.effectiveDosing.isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        Text(entry.medication.typicalDosing,
-                            style: TextStyle(fontSize: 11,
-                                color: AppTheme.gold.withAlpha(inactive ? 80 : 180),
-                                fontWeight: FontWeight.w500)),
+                        GestureDetector(
+                          onTap: inactive ? null : onEditDosage,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(entry.effectiveDosing,
+                                    style: TextStyle(fontSize: 11,
+                                        color: AppTheme.gold.withAlpha(inactive ? 80 : 180),
+                                        fontWeight: FontWeight.w500)),
+                              ),
+                              if (!inactive)
+                                Icon(Icons.edit_outlined, size: 11,
+                                    color: AppTheme.gold.withAlpha(140)),
+                            ],
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -1728,7 +1954,7 @@ class _ApproveSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final qrData = shareCode != null ? 'resolara://results/$shareCode' : null;
+    final qrData = shareCode != null ? 'https://resolara.ai/results/$shareCode' : null;
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.surface,

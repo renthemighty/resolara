@@ -137,7 +137,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       canPop: _state is _Failed,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Analysing Report'),
+          title: const Text('Analyzing Report'),
           automaticallyImplyLeading: _state is _Failed,
         ),
         body: SafeArea(

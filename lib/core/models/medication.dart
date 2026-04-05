@@ -72,15 +72,22 @@ class MedicationEntry {
   final Medication medication;
   bool active;
   Set<DoseTime> times;
+  /// Practitioner-overridden dosage string. Overrides [medication.typicalDosing] when set.
+  String? customDosage;
 
   MedicationEntry({
     required this.medication,
-    this.active = true,
+    this.active = false,
     Set<DoseTime>? times,
+    this.customDosage,
   }) : times = times ?? {DoseTime.morning, DoseTime.evening};
+
+  /// The dosage string to display and share — custom override takes priority.
+  String get effectiveDosing => customDosage ?? medication.typicalDosing;
 
   Map<String, dynamic> toJson() => {
         ...medication.toJson(),
+        if (customDosage != null) 'typical_dosing': customDosage,
         'active': active,
         'times':  times.map((t) => t.toJson).toList(),
       };

@@ -71,8 +71,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(visualizations, visualizations.patientLabel);
           }
           if (from >= 2 && from < 4) {
-            await m.addColumn(sessions, sessions.tokensIn);
-            await m.addColumn(sessions, sessions.tokensOut);
+            // Guard against duplicate-column errors: earlier builds may have
+            // created the sessions table with these columns already present.
+            try { await m.addColumn(sessions, sessions.tokensIn); } catch (_) {}
+            try { await m.addColumn(sessions, sessions.tokensOut); } catch (_) {}
           }
           if (from < 5) {
             await m.createTable(patientSavedResults);

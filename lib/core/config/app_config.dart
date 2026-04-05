@@ -5,7 +5,7 @@ class AppConfig {
   AppConfig._();
 
   static const String appName = 'Resolara';
-  static const String appVersion = '1.3.2';
+  static const String appVersion = '1.4.0';
 
   // Compile-time override: flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8099
   static const String _compiledApiBaseUrl = String.fromEnvironment(
@@ -38,7 +38,7 @@ class AppConfig {
 
   // Timeouts
   static const Duration connectTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 180);
 
   // Polling
   static const Duration jobPollInterval = Duration(seconds: 3);

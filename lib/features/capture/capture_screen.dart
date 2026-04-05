@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../app/theme/app_theme.dart';
@@ -101,6 +102,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
               : PreviewScreen(report: report, patientMode: widget.patientMode),
         ),
       );
+    } on PlatformException catch (e) {
+      setState(() {
+        _error = (e.code == 'camera_access_denied' || e.code == 'photo_access_denied')
+            ? 'Camera access is required. Please enable it in your device settings.'
+            : 'Could not load image. Please try again.';
+        _processing = false;
+      });
     } catch (e) {
       setState(() {
         _error = 'Could not load image. Please try again.';
@@ -177,18 +185,20 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Import from Files'),
                 ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _processing
-                      ? null
-                      : () {
-                          Analytics.captureStarted('describe');
-                          Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const DescribeScreen()));
-                        },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Describe Instead'),
-                ),
+                if (!widget.patientMode) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _processing
+                        ? null
+                        : () {
+                            Analytics.captureStarted('describe');
+                            Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const DescribeScreen()));
+                          },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Describe Instead'),
+                  ),
+                ],
                 const SizedBox(height: 32),
               ],
             ),

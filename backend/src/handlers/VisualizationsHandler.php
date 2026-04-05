@@ -15,8 +15,6 @@ class VisualizationsHandler {
         Response::error('Method not allowed', 405);
     }
 
-    // ── GET /v1/visualizations/{id} ───────────────────────────────────────
-
     private static function getVisualization(string $vizId): never {
         $device = Auth::require();
         $db     = Database::get();
@@ -29,10 +27,25 @@ class VisualizationsHandler {
 
         if (!$viz) Response::notFound();
 
+        // Atomically claim a pending job and start generation in the background.
+        if ($viz['status'] === 'pending') {
+            $claimed = $db->prepare(
+                'UPDATE visualizations SET status = ?, updated_at = NOW() WHERE id = ? AND status = ?'
+            );
+            $claimed->execute(['processing', $vizId, 'pending']);
+
+            if ($claimed->rowCount() === 1) {
+                $viz['status'] = 'processing';
+                self::flushAndGenerate($viz, $db);
+            }
+
+            // Another concurrent request already claimed it — re-fetch.
+            $stmt->execute([$vizId, $device['token']]);
+            $viz = $stmt->fetch();
+        }
+
         Response::json(self::formatViz($viz));
     }
-
-    // ── POST /v1/visualizations ───────────────────────────────────────────
 
     private static function createVisualization(): never {
         $device = Auth::require();
@@ -41,15 +54,16 @@ class VisualizationsHandler {
         $patientName  = substr(strip_tags((string)($body['patient_name'] ?? '')), 0, 100);
         $directPrompt = trim((string)($body['prompt'] ?? ''));
 
-        // Direct text/voice prompt path
         if ($directPrompt !== '') {
             if (strlen($directPrompt) > 2000) {
                 Response::error('Prompt too long. Maximum is 2000 characters.');
             }
-            self::enqueue(null, $directPrompt, $patientName, $device['token']);
+            self::enqueue(
+                ['__type' => 'prompt', '__prompt' => $directPrompt, '__patient' => $patientName],
+                $device['token']
+            );
         }
 
-        // Findings path
         $findings = $body['findings'] ?? [];
         if (empty($findings) || !is_array($findings)) {
             Response::error('Either findings or prompt is required.');
@@ -63,19 +77,27 @@ class VisualizationsHandler {
             'finding'     => substr(strip_tags((string)($f['finding'] ?? '')), 0, 500),
         ], $findings);
 
-        self::enqueue($cleanFindings, null, $patientName, $device['token']);
+        self::enqueue(
+            ['__type' => 'findings', '__patient' => $patientName, 'findings' => $cleanFindings],
+            $device['token']
+        );
     }
 
-    private static function enqueue(?array $findings, ?string $directPrompt, string $patientName, string $deviceToken): never {
+    private static function enqueue(array $payload, string $deviceToken): never {
         $vizId = Auth::uuid();
         $db    = Database::get();
         $db->prepare(
             'INSERT INTO visualizations (id, device_token, status, findings_json) VALUES (?, ?, ?, ?)'
-        )->execute([$vizId, $deviceToken, 'processing', $findings ? json_encode($findings) : null]);
+        )->execute([$vizId, $deviceToken, 'pending', json_encode($payload)]);
 
-        $responseData = json_encode(['job_id' => $vizId]);
+        Response::json(['job_id' => $vizId]);
+    }
+
+    private static function flushAndGenerate(array $viz, \PDO $db): never {
+        $responseData = json_encode(self::formatViz($viz));
         header('Content-Type: application/json; charset=utf-8');
         header('Content-Length: ' . strlen($responseData));
+        header('X-Accel-Buffering: no');
         echo $responseData;
 
         if (function_exists('fastcgi_finish_request')) {
@@ -86,13 +108,18 @@ class VisualizationsHandler {
         }
 
         ignore_user_abort(true);
-        set_time_limit(120);
+        set_time_limit(180);
+
+        $vizId   = $viz['id'];
+        $payload = $viz['findings_json'] ? json_decode($viz['findings_json'], true) : [];
+        $type    = $payload['__type'] ?? 'findings';
+        $patient = $payload['__patient'] ?? '';
 
         try {
-            if ($directPrompt !== null) {
-                $filename = OpenAIService::generateFromPrompt($directPrompt, $patientName);
+            if ($type === 'prompt') {
+                $filename = OpenAIService::generateFromPrompt($payload['__prompt'] ?? '', $patient);
             } else {
-                $filename = OpenAIService::generateVisualization($findings, $patientName);
+                $filename = OpenAIService::generateVisualization($payload['findings'] ?? [], $patient);
             }
             $db->prepare(
                 'UPDATE visualizations SET status = ?, image_filename = ?, updated_at = NOW() WHERE id = ?'

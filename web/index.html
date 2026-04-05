@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Clinical anatomical visualization for licensed healthcare professionals">
+
+  <!-- PWA / iOS meta tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Resolara">
+  <meta name="theme-color" content="#0A1F1C">
+  <meta name="color-scheme" content="dark">
+
+  <!-- iOS touch icons -->
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="icons/Icon-512.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Resolara Clinic</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Window Controls Overlay CSS env vars (Chrome/Edge on Win 11 + macOS 14+) */
+    :root {
+      --titlebar-area-x: env(titlebar-area-x, 0);
+      --titlebar-area-y: env(titlebar-area-y, 0);
+      --titlebar-area-width: env(titlebar-area-width, 100%);
+      --titlebar-area-height: env(titlebar-area-height, 0px);
+
+      /* Resolara brand (Deep Forest Teal dark mode) */
+      --brand-bg: #0A1F1C;
+      --brand-primary: #0E3A29;
+      --brand-text: #D4D1C7;
+      --brand-accent: #B7A46B;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--brand-bg);
+      color: var(--brand-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+      /* prevent browser pull-to-refresh in installed PWA */
+    }
+
+    /* Titlebar drag region (only visible when Window Controls Overlay is active) */
+    .titlebar-drag-region {
+      position: fixed;
+      top: 0;
+      left: var(--titlebar-area-x);
+      width: var(--titlebar-area-width);
+      height: var(--titlebar-area-height);
+      -webkit-app-region: drag;
+      app-region: drag;
+      z-index: 10000;
+      pointer-events: auto;
+    }
+    .titlebar-drag-region button,
+    .titlebar-drag-region a,
+    .titlebar-drag-region input {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+    }
+
+    /* Loading state shown before Flutter boots */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--brand-bg);
+      z-index: 1;
+    }
+    #loading .logo {
+      width: 96px;
+      height: 96px;
+      margin-bottom: 24px;
+      opacity: 0.9;
+    }
+    #loading .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(183, 164, 107, 0.2);
+      border-top-color: var(--brand-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Hide loading once Flutter takes over */
+    .flutter-loaded #loading {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Titlebar drag region for Window Controls Overlay (Chrome/Edge) -->
+  <div class="titlebar-drag-region"></div>
+
+  <!-- Pre-boot loading screen -->
+  <div id="loading">
+    <img class="logo" src="icons/Icon-192.png" alt="Resolara">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Mark body as flutter-loaded once the app has rendered its first frame
+    window.addEventListener('flutter-first-frame', function() {
+      document.body.classList.add('flutter-loaded');
+    });
+  </script>
+</body>
+</html>

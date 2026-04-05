@@ -3,8 +3,8 @@ import '../../app/theme/app_theme.dart';
 import '../../core/models/extraction_result.dart';
 import '../explanation/explanation_screen.dart';
 import '../exercises/recovery_phase_screen.dart';
-import '../generate/generate_screen.dart';
 import '../medications/medications_review_screen.dart';
+import '../review/review_screen.dart';
 
 enum GenerationOption { image, explanation, exercises, meds }
 
@@ -75,17 +75,17 @@ class _GenerationOptionsScreenState extends State<GenerationOptionsScreen> {
   Future<bool> _navigateTo(GenerationOption option) async {
     switch (option) {
       case GenerationOption.image:
-        final result = await Navigator.of(context).push<dynamic>(
+        await Navigator.of(context).push<void>(
           MaterialPageRoute(
-            builder: (_) => GenerateScreen(
-              findings:            widget.findings,
+            builder: (_) => ReviewScreen(
+              findings:            List.unmodifiable(widget.findings),
               patientName:         widget.patientName,
               extractionTokensIn:  widget.extractionTokensIn,
               extractionTokensOut: widget.extractionTokensOut,
             ),
           ),
         );
-        return result != null || true; // image screen always continues
+        return true; // image screen always continues to next selected option
 
       case GenerationOption.explanation:
         final result = await Navigator.of(context).push<bool>(

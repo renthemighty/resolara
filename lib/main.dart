@@ -10,13 +10,16 @@ import 'app/theme/app_theme.dart';
 import 'core/auth/auth_service.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/theme_provider.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase init is non-fatal — app must launch even if it fails
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);

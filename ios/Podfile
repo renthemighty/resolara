@@ -45,6 +45,11 @@ post_install do |installer|
       if config.name == 'Release'
         config.build_settings['EXCLUDED_ARCHS'] = 'x86_64'
       end
+      # Fix objective_c framework install name for hardened runtime on device.
+      # Without this, dlopen fails with "relative path not allowed in hardened program".
+      if target.name == 'objective_c'
+        config.build_settings['LD_DYLIB_INSTALL_NAME'] = '@rpath/objective_c.framework/objective_c'
+      end
     end
   end
 end

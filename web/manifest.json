@@ -1,0 +1,91 @@
+{
+    "name": "Resolara Clinic",
+    "short_name": "Resolara",
+    "description": "Clinical anatomical visualization for licensed healthcare professionals",
+    "start_url": "/",
+    "scope": "/",
+    "id": "ai.resolara.clinic.web",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+    "orientation": "any",
+    "theme_color": "#0A1F1C",
+    "background_color": "#0A1F1C",
+    "categories": ["medical", "health", "productivity"],
+    "lang": "en",
+    "dir": "ltr",
+    "prefer_related_applications": false,
+    "launch_handler": {
+        "client_mode": "navigate-existing"
+    },
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "file_handlers": [
+        {
+            "action": "/upload",
+            "accept": {
+                "application/pdf": [".pdf"],
+                "image/png": [".png"],
+                "image/jpeg": [".jpg", ".jpeg"],
+                "image/tiff": [".tif", ".tiff"]
+            },
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ],
+            "launch_type": "single-client"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Upload Report",
+            "short_name": "Upload",
+            "description": "Upload a clinical report PDF or image",
+            "url": "/upload",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Patient Dashboard",
+            "short_name": "Patients",
+            "description": "View patient list and recent sessions",
+            "url": "/patients",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}

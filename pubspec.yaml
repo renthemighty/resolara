@@ -1,7 +1,7 @@
 name: resolara
 description: Resolara — mobile-first clinical visualization for licensed healthcare professionals.
 publish_to: 'none'
-version: 1.4.0+5
+version: 1.4.0+15
 
 environment:
   sdk: ^3.10.8
@@ -59,6 +59,12 @@ dependencies:
   url_launcher: ^6.3.1
   flutter_svg: ^2.0.10+1
   cupertino_icons: ^1.0.8
+
+dependency_overrides:
+  # path_provider_foundation 2.6.0 introduced a dependency on the objective_c
+  # Dart FFI package, which crashes on device with "relative path not allowed
+  # in hardened program". Pin to 2.5.1 which uses method channels only.
+  path_provider_foundation: 2.5.1
 
 dev_dependencies:
   flutter_test:

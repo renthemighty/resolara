@@ -91,12 +91,26 @@ class ExerciseEntry {
   VideoStatus videoStatus;
   String? videoJobId;
   String? videoUrl;
+  /// Practitioner overrides — take priority over the AI-generated strings.
+  String? customRepsOrDuration;
+  String? customFrequency;
 
   ExerciseEntry({
     required this.exercise,
-    this.active      = true,
-    this.videoStatus = VideoStatus.none,
+    this.active               = true,
+    this.videoStatus          = VideoStatus.none,
     this.videoJobId,
     this.videoUrl,
+    this.customRepsOrDuration,
+    this.customFrequency,
   });
+
+  String get effectiveRepsOrDuration => customRepsOrDuration ?? exercise.repsOrDuration;
+  String get effectiveFrequency       => customFrequency      ?? exercise.frequency;
+
+  Map<String, dynamic> toJson() => {
+    ...exercise.toJson(),
+    if (customRepsOrDuration != null) 'reps_or_duration': customRepsOrDuration,
+    if (customFrequency      != null) 'frequency':        customFrequency,
+  };
 }

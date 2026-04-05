@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/mfa_challenge_screen.dart';
+import 'screens/patients_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/upload_screen.dart';
 import 'services/clinic_auth_provider.dart';
@@ -68,6 +69,11 @@ final clinicWebRouterProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: '/patients',
+        name: 'patients',
+        builder: (context, state) => const PatientsScreen(),
       ),
       GoRoute(
         path: '/upload',

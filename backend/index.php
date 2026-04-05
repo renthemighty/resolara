@@ -31,6 +31,8 @@ require_once __DIR__ . '/src/handlers/PatientHandler.php';
 require_once __DIR__ . '/src/handlers/ShareHandler.php';
 require_once __DIR__ . '/src/services/EmailService.php';
 require_once __DIR__ . '/src/clinic/handlers/ClinicAuthHandler.php';
+require_once __DIR__ . '/src/clinic/handlers/ClinicPatientHandler.php';
+require_once __DIR__ . '/src/clinic/handlers/ClinicUploadHandler.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 
@@ -187,6 +189,28 @@ if ($path === '/v1/clinic/auth/logout') {
 }
 if ($path === '/v1/clinic/auth/me') {
     ClinicAuthHandler::me();
+}
+
+// Patients
+if ($path === '/v1/clinic/patients') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        ClinicPatientHandler::create();
+    }
+    ClinicPatientHandler::listOrSearch();
+}
+if (preg_match('#^/v1/clinic/patients/([a-f0-9]{24})$#', $path, $m)) {
+    $method = $_SERVER['REQUEST_METHOD'];
+    if ($method === 'PUT')    ClinicPatientHandler::update($m[1]);
+    if ($method === 'DELETE') ClinicPatientHandler::delete($m[1]);
+    ClinicPatientHandler::get($m[1]);
+}
+
+// Sessions / visits
+if ($path === '/v1/clinic/sessions/upload') {
+    ClinicUploadHandler::handle();
+}
+if (preg_match('#^/v1/clinic/sessions/([a-f0-9]{24})$#', $path, $m)) {
+    ClinicUploadHandler::status($m[1]);
 }
 
 Response::notFound();

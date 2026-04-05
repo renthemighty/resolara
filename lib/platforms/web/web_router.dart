@@ -8,6 +8,7 @@ import 'screens/mfa_challenge_screen.dart';
 import 'screens/patients_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/upload_screen.dart';
+import 'screens/visit_review_screen.dart';
 import 'services/clinic_auth_provider.dart';
 
 /// go_router configuration for the clinic web app, Riverpod-driven.
@@ -79,6 +80,13 @@ final clinicWebRouterProvider = Provider<GoRouter>((ref) {
         path: '/upload',
         name: 'upload',
         builder: (context, state) => const UploadScreen(),
+      ),
+      GoRoute(
+        path: '/visits/:id',
+        name: 'visit-review',
+        builder: (context, state) => VisitReviewScreen(
+          visitId: state.pathParameters['id']!,
+        ),
       ),
     ],
   );

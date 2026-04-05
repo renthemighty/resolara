@@ -8,17 +8,18 @@ import 'web_router.dart';
 ///
 /// Runs at app.resolara.ai as an installable PWA. Uses dark Resolara brand
 /// theme (Deep Forest Teal background, Warm Stone text, Antique Gold accent)
-/// to match the native feel when installed via Chrome/Edge "Window Controls
-/// Overlay" or Safari "Add to Dock".
+/// to match the native feel when installed via Chrome/Edge Window Controls
+/// Overlay or Safari "Add to Dock".
 class ClinicWebApp extends ConsumerWidget {
   const ClinicWebApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(clinicWebRouterProvider);
     return MaterialApp.router(
       title: 'Resolara Clinic',
       theme: AppTheme.dark,
-      routerConfig: clinicWebRouter,
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
   }

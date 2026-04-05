@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../services/clinic_auth_provider.dart';
+import '../services/clinic_auth_service.dart';
 
 /// Clinic practitioner / admin login screen.
 ///
@@ -29,7 +30,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _totpController = TextEditingController();
 
-  bool _showTotp = false;
   bool _submitting = false;
   String? _error;
 
@@ -48,20 +48,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
 
-    // TODO(web-auth): POST /api/auth/login with email + password.
-    // If response is { status: "mfa_required" }: set _showTotp = true and
-    // ask for the code; re-submit with totp field populated. On success,
-    // the session cookie will be set by the server (Domain=.resolara.ai,
-    // httpOnly, Secure, SameSite=Lax) and the CSRF token will come back in
-    // the JSON body. Save CSRF token in a Riverpod provider for later
-    // X-CSRF-Token header on mutating requests.
-    await Future.delayed(const Duration(milliseconds: 600));
-
+    final r = await ref
+        .read(clinicAuthProvider.notifier)
+        .login(_emailController.text.trim(), _passwordController.text);
     if (!mounted) return;
-    setState(() {
-      _submitting = false;
-      _error = 'Auth backend not connected yet';
-    });
+
+    setState(() => _submitting = false);
+
+    switch (r.result) {
+      case AuthResult.ok:
+        // Router guard will move us to '/'
+        break;
+      case AuthResult.mfaRequired:
+        // Router guard will move us to '/mfa'
+        break;
+      case AuthResult.invalidCredentials:
+        setState(() => _error = 'Invalid email or password');
+      case AuthResult.throttled:
+        setState(() {
+          final mins = ((r.retryAfter ?? 900) / 60).ceil();
+          _error = 'Too many failed attempts. Try again in $mins min.';
+        });
+      case AuthResult.error:
+        setState(() => _error = 'Could not reach server. Check your connection.');
+    }
   }
 
   @override
@@ -105,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Email
                   TextFormField(
                     controller: _emailController,
-                    enabled: !_submitting && !_showTotp,
+                    enabled: !_submitting,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
                     style: const TextStyle(color: AppTheme.warmStone),
@@ -121,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Password
                   TextFormField(
                     controller: _passwordController,
-                    enabled: !_submitting && !_showTotp,
+                    enabled: !_submitting,
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
                     style: const TextStyle(color: AppTheme.warmStone),
@@ -132,30 +142,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // TOTP (only when mfa_required came back)
-                  if (_showTotp) ...[
-                    TextFormField(
-                      controller: _totpController,
-                      enabled: !_submitting,
-                      keyboardType: TextInputType.number,
-                      autofillHints: const [AutofillHints.oneTimeCode],
-                      maxLength: 6,
-                      style: const TextStyle(
-                        color: AppTheme.warmStone,
-                        fontSize: 22,
-                        letterSpacing: 8,
-                      ),
-                      decoration: _inputDecoration('6-digit code').copyWith(
-                        counterText: '',
-                      ),
-                      validator: (v) {
-                        if (v == null || v.length != 6) return 'Enter 6 digits';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
 
                   // Error banner
                   if (_error != null) ...[
@@ -212,27 +198,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: AppTheme.forestTeal,
                             ),
                           )
-                        : Text(
-                            _showTotp ? 'Verify code' : 'Sign in',
-                            style: const TextStyle(
+                        : const Text(
+                            'Sign in',
+                            style: TextStyle(
                               fontFamily: AppTheme.fontFamily,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Skip to dashboard (dev only — remove once auth wired)
-                  TextButton(
-                    onPressed: () => context.go('/'),
-                    child: const Text(
-                      'Skip to dashboard (dev)',
-                      style: TextStyle(
-                        color: AppTheme.sage,
-                        fontSize: 12,
-                      ),
-                    ),
                   ),
                 ],
               ),

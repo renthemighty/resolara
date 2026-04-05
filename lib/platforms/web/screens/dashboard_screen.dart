@@ -3,18 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../services/clinic_auth_provider.dart';
 import '../widgets/web_shell.dart';
 
 /// Clinic dashboard — landing page after login.
 ///
-/// Placeholder content for Milestone A: real data comes from
-/// `/api/clinic/me` + `/api/patients` + `/api/sessions/recent` once those
-/// endpoints land with the PHP backend work.
+/// Real data comes from /api/clinic/me + /api/patients + /api/sessions/recent
+/// once those endpoints land. For Milestone A scaffolding we render the
+/// caps from the license (via clinicAuthProvider) with placeholders.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(clinicAuthProvider);
+    final clinic = auth is AuthLoggedIn ? auth.clinic : null;
+
     return WebShell(
       title: 'Dashboard',
       body: Padding(
@@ -33,7 +37,9 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your clinic overview',
+              clinic != null
+                  ? 'Clinic tier: ${clinic.tier} · up to ${clinic.maxPractitioners} practitioners · ${clinic.maxPatients} patients'
+                  : 'Your clinic overview',
               style: TextStyle(
                 fontFamily: AppTheme.fontFamily,
                 fontSize: 14,

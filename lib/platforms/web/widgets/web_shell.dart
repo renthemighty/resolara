@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../services/clinic_auth_provider.dart';
 
 /// Shared chrome for every logged-in web screen.
 ///
@@ -44,13 +46,13 @@ class WebShell extends StatelessWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   const _TopBar({required this.title});
 
   final String title;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -87,7 +89,7 @@ class _TopBar extends StatelessWidget {
           IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout, size: 20, color: AppTheme.sage),
-            onPressed: () => context.go('/login'),
+            onPressed: () => ref.read(clinicAuthProvider.notifier).logout(),
           ),
         ],
       ),

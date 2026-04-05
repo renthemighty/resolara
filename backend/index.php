@@ -30,6 +30,7 @@ require_once __DIR__ . '/src/handlers/ExplanationHandler.php';
 require_once __DIR__ . '/src/handlers/PatientHandler.php';
 require_once __DIR__ . '/src/handlers/ShareHandler.php';
 require_once __DIR__ . '/src/services/EmailService.php';
+require_once __DIR__ . '/src/clinic/handlers/ClinicAuthHandler.php';
 
 // ── HTTPS enforcement ─────────────────────────────────────────────────────
 
@@ -44,24 +45,48 @@ if (defined('FORCE_HTTPS') && FORCE_HTTPS) {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────
+//
+// Two modes:
+//   (a) Clinic web app at https://app.resolara.ai sends Origin and needs
+//       credentials:true + a specific (non-wildcard) ACAO.
+//   (b) Mobile app (iOS/Android) sends bearer Authorization token, no
+//       browser Origin → wildcard ACAO is fine.
 
-$origin         = $_SERVER['HTTP_ORIGIN'] ?? '';
-$allowedOrigins = defined('ALLOWED_ORIGINS')
-    ? array_map('trim', explode(',', ALLOWED_ORIGINS))
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+$clinicWebOrigin = defined('CLINIC_WEB_ORIGIN')
+    ? CLINIC_WEB_ORIGIN
+    : 'https://app.resolara.ai';
+
+$extraAllowedOrigins = defined('ALLOWED_ORIGINS')
+    ? array_filter(array_map('trim', explode(',', ALLOWED_ORIGINS)))
     : [];
 
-if (empty($allowedOrigins)) {
-    header('Access-Control-Allow-Origin: *');
-} elseif (!empty($origin) && in_array($origin, $allowedOrigins, true)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
+if ($origin === $clinicWebOrigin) {
+    header('Access-Control-Allow-Origin: ' . $clinicWebOrigin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With');
+    header('Access-Control-Max-Age: 86400');
     header('Vary: Origin');
+} elseif ($origin !== '' && in_array($origin, $extraAllowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With, Authorization');
+    header('Vary: Origin');
+} elseif (empty($extraAllowedOrigins)) {
+    // Mobile clients (no browser Origin) + open-dev fallback
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type');
 }
 
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Authorization, Content-Type');
 header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
-    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    header('Strict-Transport-Security: max-age=63072000; includeSubDomains; preload');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -147,6 +172,21 @@ if (preg_match('#^/v1/visualizations/([a-f0-9\-]+)$#i', $path, $m)) {
 
 if (preg_match('#^/v1/images/([a-z0-9_]+)$#i', $path, $m)) {
     ImagesHandler::handle($m[1]);
+}
+
+// ── Clinic v2 (web app at app.resolara.ai) ────────────────────────────────
+
+if ($path === '/v1/clinic/auth/login') {
+    ClinicAuthHandler::login();
+}
+if ($path === '/v1/clinic/auth/mfa-verify') {
+    ClinicAuthHandler::mfaVerify();
+}
+if ($path === '/v1/clinic/auth/logout') {
+    ClinicAuthHandler::logout();
+}
+if ($path === '/v1/clinic/auth/me') {
+    ClinicAuthHandler::me();
 }
 
 Response::notFound();

@@ -1,0 +1,58 @@
+# ============================================================================
+# Resolara Clinic Web PWA — app.resolara.ai
+# ============================================================================
+# Deployed to the DA account webroot for app.resolara.ai on 142.127.73.40
+# (or whichever DA account hosts the subdomain). Pairs with the Flutter Web
+# build output (index.html, main.dart.js, canvaskit/, assets/, manifest.json).
+#
+# HTTPS is terminated at the LiteSpeed ADC in front of 142.127.73.40, so
+# no SSL cert redirect loop logic needed here.
+
+RewriteEngine On
+
+# ── SPA fallback ──────────────────────────────────────────────────────────
+# Any request that doesn't map to a real file or directory → index.html,
+# letting Flutter's client-side router handle the URL.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+
+# ── Cache policy ──────────────────────────────────────────────────────────
+# Flutter emits content-hashed asset filenames, so we can cache them for
+# up to a year. index.html + manifest + service worker must never cache
+# so users get updates immediately on next visit.
+<FilesMatch "\.(js|wasm|css|png|jpg|jpeg|svg|woff|woff2|ttf|otf)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+
+<FilesMatch "^(index\.html|manifest\.json|flutter_service_worker\.js|flutter_bootstrap\.js|flutter\.js|version\.json)$">
+  Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+
+# ── Security headers ──────────────────────────────────────────────────────
+# Content-Security-Policy: Flutter Web needs wasm-unsafe-eval for the
+# Skwasm/CanvasKit renderer. connect-src includes https://resolara.ai for
+# the cross-origin XHR/fetch traffic to the backend.
+Header set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "DENY"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), fullscreen=(self)"
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://resolara.ai wss://resolara.ai; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'"
+
+# ── Force HTTPS at origin (belt and braces — ADC should already enforce) ─
+# Disabled because LiteSpeed ADC terminates TLS and origin sees HTTP/1.1
+# on the internal hop. Re-enabling would cause a redirect loop.
+# <IfModule mod_rewrite.c>
+#   RewriteCond %{HTTPS} !=on
+#   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# ── MIME types (ensure WASM + manifest served correctly) ──────────────────
+AddType application/wasm .wasm
+AddType application/manifest+json .webmanifest .json
+
+# ── Deny access to source maps + hidden files ─────────────────────────────
+<FilesMatch "\.(map|htaccess|htpasswd|env)$">
+  Require all denied
+</FilesMatch>

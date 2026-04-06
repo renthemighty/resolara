@@ -43,7 +43,7 @@ class ClinicAuthHandler
         if ($email === '' || $password === '') {
             Response::error('email and password required');
         }
-        $emailLower = mb_strtolower($email, 'UTF-8');
+        $emailLower = strtolower($email);
 
         $pdo = Database::get();
 
@@ -92,7 +92,7 @@ class ClinicAuthHandler
         }
 
         $pendingMfa = (int)$user['totp_enabled'] === 1;
-        SessionService::create($pdo, $user['id'], $user['clinic_id'], $pendingMfa);
+        $session = SessionService::create($pdo, $user['id'], $user['clinic_id'], $pendingMfa);
 
         // Update last_login_at only on full success (not pending MFA)
         if (!$pendingMfa) {
@@ -107,10 +107,11 @@ class ClinicAuthHandler
         );
 
         if ($pendingMfa) {
-            Response::json(['status' => 'mfa_required']);
+            Response::json(['status' => 'mfa_required', 'token' => $session['token']]);
         }
         Response::json([
             'status' => 'ok',
+            'token' => $session['token'],
             'user' => [
                 'id' => $user['id'],
                 'email' => $user['email'],

@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 
 import 'clinic_api_client.dart';
 
+export 'clinic_api_client.dart' show ClinicApiClient;
+
 /// Return states from [ClinicAuthService.login] and [verifyMfa].
 enum AuthResult { ok, mfaRequired, invalidCredentials, throttled, error }
 
@@ -88,6 +90,8 @@ class ClinicAuthService {
 
       if (status == 200) {
         final kind = body['status'] as String?;
+        final token = body['token'] as String?;
+        if (token != null) ClinicApiClient.setToken(token);
         if (kind == 'mfa_required') {
           return (result: AuthResult.mfaRequired, user: null, retryAfter: null);
         }
@@ -164,7 +168,8 @@ class ClinicAuthService {
     try {
       await _dio.post('/v1/clinic/auth/logout');
     } on DioException {
-      // Non-fatal — cookies expire client-side anyway
+      // Non-fatal
     }
+    ClinicApiClient.setToken(null);
   }
 }

@@ -72,7 +72,7 @@ $stmt->execute([
 
 // Generate admin user
 $userId = strtolower(substr(bin2hex(random_bytes(16)), 0, 24));
-$emailLower = mb_strtolower($adminEmail, 'UTF-8');
+$emailLower = strtolower($adminEmail);
 $passwordHash = CryptoService::hashPassword($adminPassword);
 
 $stmt = $pdo->prepare("

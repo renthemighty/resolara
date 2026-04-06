@@ -38,7 +38,8 @@ Header set X-Content-Type-Options "nosniff"
 Header set X-Frame-Options "DENY"
 Header set Referrer-Policy "strict-origin-when-cross-origin"
 Header set Permissions-Policy "camera=(), microphone=(), geolocation=(), fullscreen=(self)"
-Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://resolara.ai wss://resolara.ai; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'"
+# CSP disabled during alpha — re-enable after Flutter Web boot is confirmed stable
+# Header set Content-Security-Policy "..."
 
 # ── Force HTTPS at origin (belt and braces — ADC should already enforce) ─
 # Disabled because LiteSpeed ADC terminates TLS and origin sees HTTP/1.1

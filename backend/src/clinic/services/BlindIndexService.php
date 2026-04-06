@@ -30,14 +30,14 @@ class BlindIndexService
      */
     public static function indexesFor(string $clinicId, string $fieldType, string $plaintext): array
     {
-        $normalized = mb_strtolower(trim($plaintext), 'UTF-8');
+        $normalized = strtolower(trim($plaintext));
         if ($normalized === '') return [];
 
         $key = self::clinicHmacKey($clinicId);
         $indexes = [];
-        $len = min(self::MAX_PREFIX_LEN, mb_strlen($normalized, 'UTF-8'));
+        $len = min(self::MAX_PREFIX_LEN, strlen($normalized, 'UTF-8'));
         for ($i = 1; $i <= $len; $i++) {
-            $prefix = mb_substr($normalized, 0, $i, 'UTF-8');
+            $prefix = substr($normalized, 0, $i, 'UTF-8');
             $indexes[] = self::hmac("$fieldType:$prefix", $key);
         }
         // Always emit full-string index too (for exact match)
@@ -51,7 +51,7 @@ class BlindIndexService
      */
     public static function queryIndex(string $clinicId, string $fieldType, string $query): string
     {
-        $normalized = mb_strtolower(trim($query), 'UTF-8');
+        $normalized = strtolower(trim($query));
         return self::hmac("$fieldType:$normalized", self::clinicHmacKey($clinicId));
     }
 

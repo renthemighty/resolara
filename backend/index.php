@@ -47,49 +47,9 @@ if (defined('FORCE_HTTPS') && FORCE_HTTPS) {
 }
 
 // ── CORS ──────────────────────────────────────────────────────────────────
-//
-// Two modes:
-//   (a) Clinic web app at https://app.resolara.ai sends Origin and needs
-//       credentials:true + a specific (non-wildcard) ACAO.
-//   (b) Mobile app (iOS/Android) sends bearer Authorization token, no
-//       browser Origin → wildcard ACAO is fine.
-
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-$clinicWebOrigin = defined('CLINIC_WEB_ORIGIN')
-    ? CLINIC_WEB_ORIGIN
-    : 'https://app.resolara.ai';
-
-$extraAllowedOrigins = defined('ALLOWED_ORIGINS')
-    ? array_filter(array_map('trim', explode(',', ALLOWED_ORIGINS)))
-    : [];
-
-if ($origin === $clinicWebOrigin) {
-    header('Access-Control-Allow-Origin: ' . $clinicWebOrigin);
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With');
-    header('Access-Control-Max-Age: 86400');
-    header('Vary: Origin');
-} elseif ($origin !== '' && in_array($origin, $extraAllowedOrigins, true)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token, X-Requested-With, Authorization');
-    header('Vary: Origin');
-} elseif (empty($extraAllowedOrigins)) {
-    // Mobile clients (no browser Origin) + open-dev fallback
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Authorization, Content-Type');
-}
-
-header('Referrer-Policy: no-referrer');
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
-    header('Strict-Transport-Security: max-age=63072000; includeSubDomains; preload');
-}
+// ADC at 144.217.60.100 adds Access-Control-Allow-Origin: * globally.
+// PHP must NOT add any ACAO headers or browsers see duplicates and reject.
+// Auth uses bearer tokens (not cookies) so wildcard CORS is fine.
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);

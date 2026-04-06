@@ -56,7 +56,9 @@ class SessionService
             $pendingMfa ? 1 : 0,
         ]);
 
-        self::emitCookies($token, $csrf);
+        // Cookies disabled — ADC adds wildcard CORS which breaks credentials.
+        // Token returned in JSON body, client sends as Authorization: Bearer.
+        // self::emitCookies($token, $csrf);
 
         return ['token' => $token, 'csrf' => $csrf, 'expires_at' => $expiresAt];
     }
@@ -83,10 +85,19 @@ class SessionService
      */
     public static function validate(PDO $pdo, bool $allowPendingMfa = false): ?array
     {
-        $cookie = $_COOKIE[self::COOKIE_SESSION] ?? '';
-        if ($cookie === '') return null;
+        // Accept token from Authorization: Bearer header (primary)
+        // or from cookie (fallback)
+        $token = '';
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+        }
+        if ($token === '') {
+            $token = $_COOKIE[self::COOKIE_SESSION] ?? '';
+        }
+        if ($token === '') return null;
 
-        $tokenHash = CryptoService::hashToken($cookie);
+        $tokenHash = CryptoService::hashToken($token);
         $stmt = $pdo->prepare("
             SELECT token_hash, user_id, clinic_id, csrf_token, pending_mfa,
                    expires_at, last_active_at
@@ -149,11 +160,16 @@ class SessionService
      */
     public static function logout(PDO $pdo): void
     {
-        $cookie = $_COOKIE[self::COOKIE_SESSION] ?? '';
-        if ($cookie !== '') {
-            self::destroy($pdo, CryptoService::hashToken($cookie));
-        } else {
-            self::clearCookies();
+        $token = '';
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+        }
+        if ($token === '') {
+            $token = $_COOKIE[self::COOKIE_SESSION] ?? '';
+        }
+        if ($token !== '') {
+            self::destroy($pdo, CryptoService::hashToken($token));
         }
     }
 

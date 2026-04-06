@@ -37,7 +37,7 @@ class ClinicPatientHandler
         $limit = min(50, max(1, (int)($_GET['limit'] ?? 20)));
         $offset = max(0, (int)($_GET['offset'] ?? 0));
 
-        if ($query !== '' && mb_strlen($query) >= 2) {
+        if ($query !== '' && strlen($query) >= 2) {
             $patients = self::searchByBlindIndex($pdo, $ctx, $query, $limit);
         } else {
             $stmt = $pdo->prepare("

@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'screens/admin_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/mfa_challenge_screen.dart';
+import 'screens/mfa_setup_screen.dart';
 import 'screens/patients_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/upload_screen.dart';
@@ -80,6 +82,16 @@ final clinicWebRouterProvider = Provider<GoRouter>((ref) {
         path: '/upload',
         name: 'upload',
         builder: (context, state) => const UploadScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        name: 'admin',
+        builder: (context, state) => const AdminScreen(),
+      ),
+      GoRoute(
+        path: '/mfa-setup',
+        name: 'mfa-setup',
+        builder: (context, state) => const MfaSetupScreen(),
       ),
       GoRoute(
         path: '/visits/:id',

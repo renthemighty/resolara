@@ -26,8 +26,10 @@ class SessionService
     private const COOKIE_SESSION = 'resolara_session';
     private const COOKIE_CSRF = 'resolara_csrf';
     private const COOKIE_DOMAIN = '.resolara.ai';
-    private const ABSOLUTE_TTL = 604800;   // 7 days in seconds
-    private const IDLE_TTL = 1200;         // 20 minutes in seconds
+    private const ABSOLUTE_TTL = 604800;       // 7 days
+    private const ABSOLUTE_TTL_LONG = 2592000; // 30 days (remember me)
+    private const IDLE_TTL = 1200;             // 20 minutes
+    private const IDLE_TTL_LONG = 86400;       // 24 hours (remember me)
 
     /**
      * Create a new session row, emit both cookies, return the session row
@@ -35,7 +37,7 @@ class SessionService
      *
      * @return array{token: string, csrf: string, expires_at: string}
      */
-    public static function create(PDO $pdo, string $userId, string $clinicId, bool $pendingMfa = false): array
+    public static function create(PDO $pdo, string $userId, string $clinicId, bool $pendingMfa = false, bool $rememberMe = false): array
     {
         $token = CryptoService::randomToken(32);
         $csrf = CryptoService::randomToken(24);
@@ -43,7 +45,8 @@ class SessionService
 
         $ip = self::clientIpBinary();
         $uaHash = self::userAgentHash();
-        $expiresAt = date('Y-m-d H:i:s', time() + self::ABSOLUTE_TTL);
+        $ttl = $rememberMe ? self::ABSOLUTE_TTL_LONG : self::ABSOLUTE_TTL;
+        $expiresAt = date('Y-m-d H:i:s', time() + $ttl);
 
         $stmt = $pdo->prepare("
             INSERT INTO clinic_sessions
@@ -115,9 +118,11 @@ class SessionService
             return null;
         }
 
-        // Idle timeout
+        // Idle timeout — longer for remember-me sessions (30-day absolute = remember me)
+        $absoluteTtl = strtotime($row['expires_at']) - strtotime($row['last_active_at']);
+        $idleLimit = $absoluteTtl > self::ABSOLUTE_TTL ? self::IDLE_TTL_LONG : self::IDLE_TTL;
         $idleSeconds = time() - strtotime($row['last_active_at']);
-        if ($idleSeconds > self::IDLE_TTL) {
+        if ($idleSeconds > $idleLimit) {
             self::destroy($pdo, $tokenHash);
             return null;
         }

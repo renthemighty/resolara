@@ -32,9 +32,11 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
   String _status = 'loading';
   String? _error;
   List<Map<String, dynamic>> _findings = [];
-  String? _vizJobId;
   String? _vizImageUrl;
   Timer? _pollTimer;
+  String? _shareCode;
+  String? _shareUrl;
+  bool _sharing = false;
 
   @override
   void initState() {
@@ -119,7 +121,6 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
       if ((res.statusCode ?? 0) == 200 || (res.statusCode ?? 0) == 201) {
         final jobId = (res.data as Map<String, dynamic>?)?['job_id'] as String?;
         if (jobId != null) {
-          setState(() => _vizJobId = jobId);
           _pollVizStatus(jobId);
           return;
         }
@@ -172,6 +173,44 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
       // Retry
       _pollTimer?.cancel();
       _pollTimer = Timer(const Duration(seconds: 5), () => _pollVizStatus(jobId));
+    }
+  }
+
+  Future<void> _shareWithPatient() async {
+    if (_vizImageUrl == null || _findings.isEmpty || _sharing) return;
+    setState(() { _sharing = true; _shareCode = null; _shareUrl = null; });
+
+    try {
+      final dio = ClinicApiClient.instance.raw;
+      final res = await dio.post('/v1/clinic/share', data: {
+        'image_url': _vizImageUrl!.startsWith('http')
+            ? _vizImageUrl!
+            : 'https://resolara.ai/api/v1/images/$_vizImageUrl',
+        'findings': _findings,
+      });
+      if (!mounted) return;
+      if ((res.statusCode ?? 0) == 200) {
+        final body = res.data as Map<String, dynamic>;
+        setState(() {
+          _sharing = false;
+          _shareCode = body['code'] as String?;
+          _shareUrl = body['url'] as String?;
+        });
+      } else {
+        setState(() => _sharing = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to create share link')),
+          );
+        }
+      }
+    } on DioException {
+      if (mounted) {
+        setState(() => _sharing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Network error creating share')),
+        );
+      }
     }
   }
 
@@ -266,6 +305,81 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
                       ),
                     ),
                   ),
+                ],
+
+                // Share button + result (after viz is complete)
+                if (_status == 'complete' && _vizImageUrl != null) ...[
+                  const SizedBox(height: 24),
+                  if (_shareCode != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF122B21),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.gold.withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.check_circle, color: AppTheme.gold, size: 32),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Share link created',
+                            style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.warmStone,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SelectableText(
+                            _shareUrl ?? 'https://resolara.ai/results/$_shareCode',
+                            style: const TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontSize: 14,
+                              color: AppTheme.gold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Code: $_shareCode',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.warmStone,
+                              letterSpacing: 4,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Patient can visit the link above or enter this code in the Resolara app.',
+                            style: TextStyle(color: AppTheme.sage, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else
+                    ElevatedButton.icon(
+                      onPressed: _sharing ? null : _shareWithPatient,
+                      icon: _sharing
+                          ? const SizedBox(
+                              width: 16, height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.forestTeal),
+                            )
+                          : const Icon(Icons.share_outlined, size: 18),
+                      label: Text(_sharing ? 'Creating link...' : 'Share with patient'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.emerald,
+                        foregroundColor: AppTheme.warmStone,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
                 ],
 
                 const SizedBox(height: 24),

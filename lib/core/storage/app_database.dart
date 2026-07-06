@@ -50,16 +50,27 @@ class Sessions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class PatientReminders extends Table {
+  IntColumn  get id            => integer().autoIncrement()();
+  TextColumn get shareCode     => text()();
+  TextColumn get itemId        => text()();       // medication or exercise ID
+  TextColumn get itemType      => text()();       // 'medication' or 'exercise'
+  TextColumn get itemName      => text()();
+  IntColumn  get reminderHour  => integer()();
+  IntColumn  get reminderMinute => integer()();
+  BoolColumn get enabled       => boolean().withDefault(const Constant(true))();
+}
+
 // ---------------------------------------------------------------------------
 // Database
 // ---------------------------------------------------------------------------
 
-@DriftDatabase(tables: [Visualizations, Sessions, PatientSavedResults])
+@DriftDatabase(tables: [Visualizations, Sessions, PatientSavedResults, PatientReminders])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +89,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 5) {
             await m.createTable(patientSavedResults);
+          }
+          if (from < 6) {
+            await m.createTable(patientReminders);
           }
         },
       );
@@ -152,6 +166,32 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deletePatientSaved(String code) =>
       (delete(patientSavedResults)
             ..where((t) => t.shareCode.equals(code.toUpperCase())))
+          .go();
+
+  // ── Patient Reminders ────────────────────────────────────────────────────
+
+  Future<List<PatientReminder>> getRemindersForShare(String shareCode) =>
+      (select(patientReminders)
+            ..where((t) => t.shareCode.equals(shareCode)))
+          .get();
+
+  Future<PatientReminder?> getReminder(String shareCode, String itemId, String itemType) =>
+      (select(patientReminders)
+            ..where((t) =>
+                t.shareCode.equals(shareCode) &
+                t.itemId.equals(itemId) &
+                t.itemType.equals(itemType)))
+          .getSingleOrNull();
+
+  Future<int> insertReminder(PatientRemindersCompanion entry) =>
+      into(patientReminders).insert(entry);
+
+  Future<void> deleteReminder(String shareCode, String itemId, String itemType) =>
+      (delete(patientReminders)
+            ..where((t) =>
+                t.shareCode.equals(shareCode) &
+                t.itemId.equals(itemId) &
+                t.itemType.equals(itemType)))
           .go();
 }
 

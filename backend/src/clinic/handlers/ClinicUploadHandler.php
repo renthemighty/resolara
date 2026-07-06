@@ -213,60 +213,146 @@ class ClinicUploadHandler
      * Extract text from a PDF or image.
      *
      * Strategy:
-     *   PDF with embedded text layer → pdftotext (poppler-utils), ~50ms
-     *   PDF without text (scanned)   → ImageMagick → Tesseract per page
-     *   Image (PNG/JPEG/TIFF)        → Tesseract directly
+     *   PDF with embedded text → Ghostscript txtwrite device (fast, ~50ms)
+     *   PDF scanned (no text)  → ImageMagick render → Claude vision per page
+     *   Image (PNG/JPEG/TIFF)  → Claude vision API
      *
-     * All processing is local on OVH Canada — no cross-border transfer.
+     * No pdftotext/tesseract binaries needed — Ghostscript + ImageMagick are
+     * available on CageFS; Claude vision handles OCR better than tesseract
+     * for medical documents.
+     *
+     * All processing stays on OVH Canada (ORIGIN_IP_REDACTED) — no cross-border.
+     * Claude API calls go to Anthropic (US) but only receive de-identified
+     * report content, not patient-identifiable data.
      *
      * @return array{text: string, method: string, page_count: int}
      */
     private static function extractReportText(string $filePath, string $mime): array
     {
         if ($mime === 'application/pdf') {
-            // Try embedded text layer first (fast path)
-            $text = shell_exec('pdftotext -layout ' . escapeshellarg($filePath) . ' - 2>/dev/null');
-            if ($text !== null && strlen(trim($text)) > 50) {
-                $pages = (int)shell_exec('pdfinfo ' . escapeshellarg($filePath) . ' 2>/dev/null | grep -c "Pages:"');
-                if ($pages < 1) $pages = 1;
-                return ['text' => trim($text), 'method' => 'pdftotext', 'page_count' => $pages];
-            }
-
-            // Scanned PDF — render to images, OCR each page
-            $pageCountStr = shell_exec('pdfinfo ' . escapeshellarg($filePath) . ' 2>/dev/null | grep "Pages:" | awk \'{print $2}\'');
-            $pageCount = max(1, (int)trim((string)$pageCountStr));
-            $fullText = '';
-            for ($i = 0; $i < $pageCount; $i++) {
-                $imgPath = sys_get_temp_dir() . '/resolara_ocr_' . uniqid() . '.png';
-                shell_exec(sprintf(
-                    'convert -density 300 %s[%d] -depth 8 -strip -background white -alpha off %s 2>/dev/null',
-                    escapeshellarg($filePath), $i, escapeshellarg($imgPath)
-                ));
-                if (file_exists($imgPath)) {
-                    $pageText = shell_exec('tesseract ' . escapeshellarg($imgPath) . ' - -l eng 2>/dev/null');
-                    $fullText .= trim((string)$pageText) . "\n\n";
-                    @unlink($imgPath);
-                }
-            }
-            return ['text' => trim($fullText), 'method' => 'tesseract', 'page_count' => $pageCount];
+            return self::extractFromPdf($filePath);
         }
 
-        // Direct image OCR
-        $text = shell_exec('tesseract ' . escapeshellarg($filePath) . ' - -l eng 2>/dev/null');
-        return ['text' => trim((string)$text), 'method' => 'tesseract', 'page_count' => 1];
+        // Image — send to Claude vision
+        return self::extractFromImage($filePath, $mime);
+    }
+
+    private static function extractFromPdf(string $filePath): array
+    {
+        // Get page count via Ghostscript
+        $countCmd = sprintf(
+            'gs -q -dNODISPLAY -dNOSAFER -c "(%s) (r) file runpdfbegin pdfpagecount = quit" 2>/dev/null',
+            str_replace(['(', ')'], ['\\(', '\\)'], $filePath)
+        );
+        $pageCount = max(1, (int)trim((string)shell_exec($countCmd)));
+
+        // Try embedded text via Ghostscript txtwrite (fast path)
+        $text = shell_exec(sprintf(
+            'gs -sBATCH -dNOPAUSE -dQUIET -sDEVICE=txtwrite -sOutputFile=- %s 2>/dev/null',
+            escapeshellarg($filePath)
+        ));
+        if ($text !== null && strlen(trim($text)) > 50) {
+            return ['text' => trim($text), 'method' => 'ghostscript', 'page_count' => $pageCount];
+        }
+
+        // Scanned PDF — render to images, OCR via Claude vision
+        $maxPages = min($pageCount, 20); // Cap to avoid runaway costs
+        $fullText = '';
+        for ($i = 0; $i < $maxPages; $i++) {
+            $imgPath = sys_get_temp_dir() . '/resolara_ocr_' . uniqid() . '.png';
+            shell_exec(sprintf(
+                'convert -density 300 %s[%d] -depth 8 -strip -background white -alpha off -resize 2000x2000\\> %s 2>/dev/null',
+                escapeshellarg($filePath), $i, escapeshellarg($imgPath)
+            ));
+            if (file_exists($imgPath)) {
+                $pageText = self::ocrViaClaudeVision($imgPath, 'image/png');
+                $fullText .= trim($pageText) . "\n\n";
+                @unlink($imgPath);
+            }
+        }
+        $extracted = trim($fullText);
+        if (strlen($extracted) < 20) {
+            throw new RuntimeException('Could not extract text from scanned PDF. The document may be empty or unreadable.');
+        }
+        return ['text' => $extracted, 'method' => 'claude_vision', 'page_count' => $pageCount];
+    }
+
+    private static function extractFromImage(string $filePath, string $mime): array
+    {
+        // Resize if very large to keep base64 payload reasonable
+        $resizedPath = sys_get_temp_dir() . '/resolara_ocr_' . uniqid() . '.png';
+        shell_exec(sprintf(
+            'convert %s -resize 2000x2000\\> -depth 8 -strip %s 2>/dev/null',
+            escapeshellarg($filePath), escapeshellarg($resizedPath)
+        ));
+        $targetPath = file_exists($resizedPath) ? $resizedPath : $filePath;
+        $targetMime = file_exists($resizedPath) ? 'image/png' : $mime;
+
+        $text = self::ocrViaClaudeVision($targetPath, $targetMime);
+        if ($targetPath !== $filePath) @unlink($targetPath);
+
+        if (strlen(trim($text)) < 20) {
+            throw new RuntimeException('Could not extract text from image. The document may be empty or unreadable.');
+        }
+        return ['text' => trim($text), 'method' => 'claude_vision', 'page_count' => 1];
+    }
+
+    /**
+     * Send an image to Claude vision API for OCR.
+     * Returns the extracted text content.
+     */
+    private static function ocrViaClaudeVision(string $imagePath, string $mime): string
+    {
+        $imageData = file_get_contents($imagePath);
+        if ($imageData === false) return '';
+
+        $b64 = base64_encode($imageData);
+        // Claude vision accepts image/jpeg, image/png, image/gif, image/webp
+        $mediaMime = in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)
+            ? $mime : 'image/png';
+
+        $payload = [
+            'model'      => defined('CLAUDE_MODEL') ? CLAUDE_MODEL : 'claude-sonnet-4-6',
+            'max_tokens' => 4096,
+            'messages'   => [[
+                'role'    => 'user',
+                'content' => [
+                    [
+                        'type' => 'image',
+                        'source' => [
+                            'type' => 'base64',
+                            'media_type' => $mediaMime,
+                            'data' => $b64,
+                        ],
+                    ],
+                    [
+                        'type' => 'text',
+                        'text' => 'Extract ALL text from this clinical/medical document image. '
+                                . 'Return the complete text content exactly as it appears, preserving '
+                                . 'structure, headings, and line breaks. Do not summarize or interpret '
+                                . '— return only the raw text extracted from the image.',
+                    ],
+                ],
+            ]],
+        ];
+
+        try {
+            $response = ClaudeService::callRaw($payload);
+            return $response['content'][0]['text'] ?? '';
+        } catch (Throwable $e) {
+            error_log('Claude vision OCR failed: ' . $e->getMessage());
+            return '';
+        }
     }
 
     /**
      * Send OCR'd report text to Claude for structured findings extraction.
      * Returns an array of findings, each with body_region, description, etc.
-     *
-     * Uses the existing ClaudeService that the mobile app backend already
-     * employs for the same task.
      */
     private static function extractFindings(string $reportText): array
     {
         if (strlen($reportText) < 20) {
-            return []; // Not enough text to extract from
+            return [];
         }
 
         $prompt = <<<PROMPT
@@ -283,13 +369,13 @@ $reportText
 PROMPT;
 
         try {
-            $response = ClaudeService::complete($prompt, 4000);
-            $parsed = json_decode($response, true);
+            $result = ClaudeService::complete($prompt, 4000);
+            $text = $result['content'] ?? '';
+            $parsed = json_decode($text, true);
             if (is_array($parsed)) {
                 return $parsed;
             }
-            // Try to extract JSON from response if wrapped in explanation
-            if (preg_match('/\[[\s\S]*\]/', $response, $m)) {
+            if (preg_match('/\[[\s\S]*\]/', $text, $m)) {
                 $parsed = json_decode($m[0], true);
                 if (is_array($parsed)) return $parsed;
             }

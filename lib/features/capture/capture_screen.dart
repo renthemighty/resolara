@@ -47,27 +47,78 @@ class _CaptureScreenState extends State<CaptureScreen> {
         }
         rawFile = File(picked.path);
       } else if (source == CaptureSource.photos) {
-        final picked = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
+        final picked = await ImagePicker().pickMultiImage(
           imageQuality: 100,
           requestFullMetadata: false,
         );
-        if (picked == null) {
+        if (picked.isEmpty) {
           setState(() => _processing = false);
           return;
         }
-        rawFile = File(picked.path);
+        if (picked.length == 1) {
+          rawFile = File(picked.first.path);
+        } else {
+          // Multi-image from gallery — batch processing
+          final reports = picked.map((xfile) => CapturedReport(
+            file: File(xfile.path),
+            capturedAt: DateTime.now(),
+            source: source,
+          )).toList();
+          if (!mounted) return;
+          setState(() => _processing = false);
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ReaderScreen(
+                batch: CapturedBatch(reports),
+                patientMode: widget.patientMode,
+              ),
+            ),
+          );
+          return;
+        }
       } else {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'pdf'],
-          allowMultiple: false,
+          allowMultiple: true,
         );
-        if (result == null || result.files.single.path == null) {
+        if (result == null || result.files.isEmpty) {
           setState(() => _processing = false);
           return;
         }
-        rawFile = File(result.files.single.path!);
+        if (result.files.length == 1) {
+          if (result.files.first.path == null) {
+            setState(() => _processing = false);
+            return;
+          }
+          rawFile = File(result.files.first.path!);
+        } else {
+          // Multi-file import — batch processing
+          final reports = <CapturedReport>[];
+          for (final pf in result.files) {
+            if (pf.path == null) continue;
+            reports.add(CapturedReport(
+              file: File(pf.path!),
+              capturedAt: DateTime.now(),
+              source: source,
+            ));
+          }
+          if (reports.isEmpty) {
+            setState(() => _processing = false);
+            return;
+          }
+          if (!mounted) return;
+          setState(() => _processing = false);
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ReaderScreen(
+                batch: CapturedBatch(reports),
+                patientMode: widget.patientMode,
+              ),
+            ),
+          );
+          return;
+        }
       }
 
       final ext = rawFile.path.toLowerCase();

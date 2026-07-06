@@ -34,8 +34,12 @@ class ClinicContext
             Response::unauthorized();
         }
 
+        // CSRF check only applies to cookie-based auth. Bearer tokens are
+        // not auto-sent by browsers so CSRF is not a risk vector.
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $isBearerAuth = str_starts_with($authHeader, 'Bearer ');
+        if (!$isBearerAuth && in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) {
             if (!SessionService::verifyCsrf($session)) {
                 Response::error('CSRF token missing or invalid', 403);
             }

@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/services/notification_service.dart';
 import '../../firebase_options.dart';
 import '../router.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +38,7 @@ Future<void> main() async {
 
   await _clearKeychainOnFreshInstall();
   await AppConfig.loadServerOverride();
+  await NotificationService.instance.init();
   runApp(const ProviderScope(child: Resolara()));
 }
 

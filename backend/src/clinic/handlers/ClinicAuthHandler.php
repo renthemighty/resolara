@@ -92,7 +92,8 @@ class ClinicAuthHandler
         }
 
         $pendingMfa = (int)$user['totp_enabled'] === 1;
-        $session = SessionService::create($pdo, $user['id'], $user['clinic_id'], $pendingMfa);
+        $rememberMe = !empty($body['remember_me']);
+        $session = SessionService::create($pdo, $user['id'], $user['clinic_id'], $pendingMfa, $rememberMe);
 
         // Update last_login_at only on full success (not pending MFA)
         if (!$pendingMfa) {
@@ -202,6 +203,99 @@ class ClinicAuthHandler
         }
         SessionService::logout($pdo);
         Response::json(['status' => 'ok']);
+    }
+
+    /**
+     * POST /v1/clinic/auth/mfa-setup
+     * Generates a TOTP secret, encrypts it, stores it (but does NOT enable
+     * MFA yet). Returns the otpauth URI for QR rendering.
+     * User must confirm with /mfa-confirm to flip totp_enabled = 1.
+     */
+    public static function mfaSetup(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+        }
+
+        $pdo = Database::get();
+        $ctx = ClinicContext::require($pdo);
+
+        // Don't allow re-setup if already enabled
+        if ((int)$ctx->user['totp_enabled'] === 1) {
+            Response::error('MFA is already enabled. Disable it first to reconfigure.', 400);
+        }
+
+        $secret = TotpService::generateSecret();
+        $uri = TotpService::otpauthUri($secret, $ctx->user['email']);
+        $b32 = TotpService::base32Encode($secret);
+
+        // Encrypt and store the secret (not yet enabled)
+        $encSecret = CryptoService::encrypt($secret, $ctx->dek);
+        $pdo->prepare("UPDATE clinic_users SET totp_secret_encrypted = ? WHERE id = ?")
+            ->execute([$encSecret, $ctx->userId]);
+
+        AuditService::log(
+            $pdo, 'mfa_setup_started', 'update',
+            $ctx->clinicId, $ctx->userId, 'user', $ctx->userId, true
+        );
+
+        Response::json([
+            'otpauth_uri' => $uri,
+            'secret_b32' => $b32,
+        ]);
+    }
+
+    /**
+     * POST /v1/clinic/auth/mfa-confirm
+     * Verifies the user's first TOTP code and enables MFA.
+     * Body: {code}
+     */
+    public static function mfaConfirm(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+        }
+
+        $body = json_decode(file_get_contents('php://input') ?: '', true);
+        $code = trim((string)($body['code'] ?? ''));
+        if ($code === '') Response::error('code required', 400);
+
+        $pdo = Database::get();
+        $ctx = ClinicContext::require($pdo);
+
+        if ((int)$ctx->user['totp_enabled'] === 1) {
+            Response::error('MFA is already enabled', 400);
+        }
+
+        // Load and decrypt the pending secret
+        $stmt = $pdo->prepare("SELECT totp_secret_encrypted FROM clinic_users WHERE id = ?");
+        $stmt->execute([$ctx->userId]);
+        $row = $stmt->fetch();
+        if (!$row || !$row['totp_secret_encrypted']) {
+            Response::error('No MFA setup in progress. Call /mfa-setup first.', 400);
+        }
+
+        $secret = CryptoService::decrypt($row['totp_secret_encrypted'], $ctx->dek);
+        if ($secret === null) Response::error('Could not decrypt MFA secret', 500);
+
+        if (!TotpService::verify($secret, $code)) {
+            AuditService::log(
+                $pdo, 'mfa_confirm_failed', 'failed_auth',
+                $ctx->clinicId, $ctx->userId, 'user', $ctx->userId, false
+            );
+            Response::error('Invalid code. Open your authenticator app and try the current code.', 401);
+        }
+
+        // Enable MFA
+        $pdo->prepare("UPDATE clinic_users SET totp_enabled = 1 WHERE id = ?")
+            ->execute([$ctx->userId]);
+
+        AuditService::log(
+            $pdo, 'mfa_enabled', 'update',
+            $ctx->clinicId, $ctx->userId, 'user', $ctx->userId, true
+        );
+
+        Response::json(['status' => 'ok', 'mfa_enabled' => true]);
     }
 
     public static function me(): void

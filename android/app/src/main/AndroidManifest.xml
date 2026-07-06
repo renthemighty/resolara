@@ -2,6 +2,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- Explicitly opt out of advertising ID — not required for this healthcare app -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
     <application

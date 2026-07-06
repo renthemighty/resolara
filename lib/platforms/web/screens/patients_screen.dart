@@ -138,23 +138,21 @@ class _PatientsScreenState extends ConsumerState<PatientsScreen> {
                         onChanged: _onSearchChanged,
                         style: const TextStyle(color: AppTheme.warmStone, fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'Search patients...',
+                          hintText: 'Search by patient name... (${_shortcutLabel})',
                           hintStyle: TextStyle(color: AppTheme.sage.withValues(alpha: 0.6)),
                           prefixIcon: const Icon(Icons.search, color: AppTheme.sage, size: 20),
-                          suffixIcon: Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Text(
-                              _shortcutLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.sage.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ),
-                          suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, size: 18, color: AppTheme.sage),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _loadPatients();
+                                  },
+                                )
+                              : null,
                           filled: true,
                           fillColor: const Color(0xFF122B21),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,

@@ -95,11 +95,34 @@ class _ExtractScreenState extends State<ExtractScreen> {
                     padding: const EdgeInsets.all(16),
                     itemCount: _findings.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _FindingCard(
-                      finding: _findings[i],
-                      onEdit: () => _editFinding(_findings[i]),
-                      onRemove: () => _removeFinding(_findings[i].id),
-                    ),
+                    itemBuilder: (_, i) {
+                      final finding = _findings[i];
+                      final showDocHeader = finding.sourceDocumentIndex != null &&
+                          (i == 0 || _findings[i - 1].sourceDocumentIndex != finding.sourceDocumentIndex);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showDocHeader)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8, top: 4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.gold.withAlpha(30),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text('Document ${finding.sourceDocumentIndex! + 1}',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.gold)),
+                              ),
+                            ),
+                          _FindingCard(
+                            finding: finding,
+                            onEdit: () => _editFinding(finding),
+                            onRemove: () => _removeFinding(finding.id),
+                          ),
+                        ],
+                      );
+                    },
                   ),
           ),
           _ConfirmBar(
@@ -127,11 +150,16 @@ class _PatientLabelField extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(fontSize: 14, color: AppTheme.emerald),
+        style: TextStyle(
+          fontSize: 14,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppTheme.warmStone
+              : AppTheme.emerald,
+        ),
         decoration: InputDecoration(
           hintText: 'Patient label (optional)',
-          hintStyle: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-          prefixIcon: const Icon(Icons.person_outline, size: 18, color: AppTheme.textSecondary),
+          hintStyle: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+          prefixIcon: Icon(Icons.person_outline, size: 18, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
           isDense: true,
           filled: false,
           border: OutlineInputBorder(
@@ -160,14 +188,14 @@ class _LowConfidenceBanner extends StatelessWidget {
       width: double.infinity,
       color: AppTheme.gold.withAlpha(30),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.info_outline, color: AppTheme.gold, size: 18),
-          SizedBox(width: 10),
+          const Icon(Icons.info_outline, color: AppTheme.gold, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Some findings have low confidence. Review them before confirming.',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
             ),
           ),
         ],
@@ -221,10 +249,10 @@ class _FindingCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           finding.laymanTerm,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: AppTheme.textSecondary),
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
                         ),
                       ],
                     ],
@@ -349,9 +377,9 @@ class _ConfirmBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        border: Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: const Border(top: BorderSide(color: AppTheme.sage, width: 0.5)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       child: Column(
@@ -360,8 +388,8 @@ class _ConfirmBar extends StatelessWidget {
           Text(
             '$findingCount finding${findingCount == 1 ? '' : 's'} selected for visualization',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 13, color: AppTheme.textSecondary),
+            style: TextStyle(
+                fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
           ),
           const SizedBox(height: 10),
           ElevatedButton(

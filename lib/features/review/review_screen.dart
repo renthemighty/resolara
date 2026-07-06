@@ -907,11 +907,11 @@ class _ImageAccordionContent extends StatelessWidget {
       _ImageReady(bytes: final bytes) => GestureDetector(
           onTap: onFullscreen,
           child: Container(
+            width: double.infinity,
             color: AppTheme.forestTeal,
-            constraints: const BoxConstraints(maxHeight: 420),
             child: Hero(
               tag: 'viz_preview',
-              child: Image.memory(bytes, fit: BoxFit.contain),
+              child: Image.memory(bytes, fit: BoxFit.fitWidth),
             ),
           ),
         ),

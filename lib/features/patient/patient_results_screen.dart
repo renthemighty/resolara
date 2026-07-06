@@ -10,6 +10,7 @@ import '../../core/services/analytics_service.dart';
 import '../../core/models/explanation.dart';
 import '../../core/models/exercise.dart';
 import '../../core/models/medication.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/storage/app_database.dart';
 
 class PatientResultsScreen extends StatefulWidget {
@@ -337,6 +338,7 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
                 error:     _exercisesError,
                 exercises: _exercises,
                 onRetry:   () => _loadExercises(_exercisePhase),
+                shareCode: widget.shareCode ?? '',
               ),
             ),
             const SizedBox(height: 8),
@@ -359,6 +361,7 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
                 error:       _medicationsError,
                 medications: _medications,
                 onRetry:     _loadMedications,
+                shareCode:   widget.shareCode ?? '',
               ),
             ),
           ],
@@ -600,12 +603,14 @@ class _ExercisesSection extends StatelessWidget {
   final String?        error;
   final List<Exercise> exercises;
   final VoidCallback   onRetry;
+  final String         shareCode;
 
   const _ExercisesSection({
     required this.loading,
     required this.error,
     required this.exercises,
     required this.onRetry,
+    required this.shareCode,
   });
 
   @override
@@ -620,14 +625,56 @@ class _ExercisesSection extends StatelessWidget {
       padding:          const EdgeInsets.all(16),
       itemCount:        exercises.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder:      (_, i)  => _ExerciseCard(ex: exercises[i]),
+      itemBuilder:      (_, i)  => _ExerciseCard(ex: exercises[i], shareCode: shareCode),
     );
   }
 }
 
-class _ExerciseCard extends StatelessWidget {
+class _ExerciseCard extends StatefulWidget {
   final Exercise ex;
-  const _ExerciseCard({required this.ex});
+  final String shareCode;
+  const _ExerciseCard({required this.ex, required this.shareCode});
+
+  @override
+  State<_ExerciseCard> createState() => _ExerciseCardState();
+}
+
+class _ExerciseCardState extends State<_ExerciseCard> {
+  bool _reminderActive = false;
+  AppDatabase? _db;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderState();
+  }
+
+  Future<void> _loadReminderState() async {
+    if (widget.shareCode.isEmpty) return;
+    _db = await openAppDatabase();
+    final existing = await _db!.getReminder(widget.shareCode, widget.ex.name, 'exercise');
+    if (mounted && existing != null) setState(() => _reminderActive = true);
+  }
+
+  Future<void> _toggleReminder() async {
+    if (_reminderActive) {
+      await NotificationService.instance.cancelReminder(widget.ex.name, 'exercise');
+      await _db?.deleteReminder(widget.shareCode, widget.ex.name, 'exercise');
+      if (mounted) setState(() => _reminderActive = false);
+    } else {
+      final granted = await NotificationService.instance.requestPermission();
+      if (!granted || !mounted) return;
+      final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
+      if (time == null || !mounted) return;
+      await NotificationService.instance.scheduleExerciseReminder(
+        exerciseId: widget.ex.name, exerciseName: widget.ex.name, time: time);
+      _db ??= await openAppDatabase();
+      await _db!.insertReminder(PatientRemindersCompanion.insert(
+        shareCode: widget.shareCode, itemId: widget.ex.name, itemType: 'exercise',
+        itemName: widget.ex.name, reminderHour: time.hour, reminderMinute: time.minute));
+      if (mounted) setState(() => _reminderActive = true);
+    }
+  }
 
   Future<void> _openYouTube(String query) async {
     final uri = Uri.parse(
@@ -640,6 +687,7 @@ class _ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
+    final ex = widget.ex;
     return Container(
       padding:    const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -664,7 +712,17 @@ class _ExerciseCard extends StatelessWidget {
                         color: AppTheme.emerald)),
               ),
               const Spacer(),
-              if (ex.youtubeQuery.isNotEmpty)
+              if (widget.shareCode.isNotEmpty)
+                GestureDetector(
+                  onTap: _toggleReminder,
+                  child: Icon(
+                    _reminderActive ? Icons.notifications_active : Icons.notifications_none,
+                    size: 20,
+                    color: _reminderActive ? AppTheme.gold : AppTheme.sage,
+                  ),
+                ),
+              if (ex.youtubeQuery.isNotEmpty) ...[
+                const SizedBox(width: 12),
                 GestureDetector(
                   onTap: () => _openYouTube(ex.youtubeQuery),
                   child: const Row(
@@ -678,23 +736,28 @@ class _ExerciseCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
-          Text(ex.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Text(ex.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 6),
-          Text(ex.description, style: TextStyle(fontSize: 14, color: onSurface)),
+          Text(ex.description, style: TextStyle(fontSize: 14, color: onSurface),
+              maxLines: 4, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 8),
           Row(children: [
             Icon(Icons.repeat_outlined,  size: 13, color: AppTheme.sage),
             const SizedBox(width: 4),
-            Text(ex.repsOrDuration,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            Flexible(child: Text(ex.repsOrDuration,
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
             const SizedBox(width: 12),
             Icon(Icons.schedule_outlined, size: 13, color: AppTheme.sage),
             const SizedBox(width: 4),
-            Text(ex.frequency,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            Flexible(child: Text(ex.frequency,
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
         ],
       ),
@@ -709,12 +772,14 @@ class _MedicationsSection extends StatelessWidget {
   final String?          error;
   final List<Medication> medications;
   final VoidCallback     onRetry;
+  final String           shareCode;
 
   const _MedicationsSection({
     required this.loading,
     required this.error,
     required this.medications,
     required this.onRetry,
+    required this.shareCode,
   });
 
   @override
@@ -732,19 +797,63 @@ class _MedicationsSection extends StatelessWidget {
           padding:          const EdgeInsets.all(16),
           itemCount:        medications.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder:      (_, i)  => _MedicationCard(med: medications[i]),
+          itemBuilder:      (_, i)  => _MedicationCard(med: medications[i], shareCode: shareCode),
         ),
       ],
     );
   }
 }
 
-class _MedicationCard extends StatelessWidget {
+class _MedicationCard extends StatefulWidget {
   final Medication med;
-  const _MedicationCard({required this.med});
+  final String shareCode;
+  const _MedicationCard({required this.med, required this.shareCode});
+
+  @override
+  State<_MedicationCard> createState() => _MedicationCardState();
+}
+
+class _MedicationCardState extends State<_MedicationCard> {
+  bool _reminderActive = false;
+  AppDatabase? _db;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderState();
+  }
+
+  Future<void> _loadReminderState() async {
+    if (widget.shareCode.isEmpty) return;
+    _db = await openAppDatabase();
+    final existing = await _db!.getReminder(widget.shareCode, widget.med.name, 'medication');
+    if (mounted && existing != null) setState(() => _reminderActive = true);
+  }
+
+  Future<void> _toggleReminder() async {
+    if (_reminderActive) {
+      await NotificationService.instance.cancelReminder(widget.med.name, 'medication');
+      await _db?.deleteReminder(widget.shareCode, widget.med.name, 'medication');
+      if (mounted) setState(() => _reminderActive = false);
+    } else {
+      final granted = await NotificationService.instance.requestPermission();
+      if (!granted || !mounted) return;
+      final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 8, minute: 0));
+      if (time == null || !mounted) return;
+      await NotificationService.instance.scheduleMedicationReminder(
+        medicationId: widget.med.name, medicationName: widget.med.name, time: time);
+      _db ??= await openAppDatabase();
+      await _db!.insertReminder(PatientRemindersCompanion.insert(
+        shareCode: widget.shareCode, itemId: widget.med.name, itemType: 'medication',
+        itemName: widget.med.name, reminderHour: time.hour, reminderMinute: time.minute));
+      if (mounted) setState(() => _reminderActive = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
+    final med = widget.med;
     return Container(
       padding:    const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -755,16 +864,32 @@ class _MedicationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(med.name,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Row(
+            children: [
+              Expanded(child: Text(med.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  maxLines: 2, overflow: TextOverflow.ellipsis)),
+              if (widget.shareCode.isNotEmpty)
+                GestureDetector(
+                  onTap: _toggleReminder,
+                  child: Icon(
+                    _reminderActive ? Icons.notifications_active : Icons.notifications_none,
+                    size: 20,
+                    color: _reminderActive ? AppTheme.gold : AppTheme.sage,
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
-          Text(med.purpose, style: TextStyle(fontSize: 14, color: onSurface)),
+          Text(med.purpose, style: TextStyle(fontSize: 14, color: onSurface),
+              maxLines: 4, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 8),
           Row(children: [
             const Icon(Icons.medication_outlined, size: 13, color: AppTheme.sage),
             const SizedBox(width: 4),
-            Text(med.typicalDosing,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            Expanded(child: Text(med.typicalDosing,
+                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                maxLines: 2, overflow: TextOverflow.ellipsis)),
           ]),
         ],
       ),

@@ -1,10 +1,8 @@
+import 'dart:html' as html;
+
+import 'package:dio/browser.dart';
 import 'package:dio/dio.dart';
 
-/// Dio client for the clinic web app.
-///
-/// Uses Authorization: Bearer token (stored in memory after login).
-/// The ADC adds wildcard CORS globally, which is incompatible with
-/// cookie-based credentials. Bearer tokens work fine with wildcard CORS.
 class ClinicApiClient {
   ClinicApiClient._(this._dio);
 
@@ -16,27 +14,49 @@ class ClinicApiClient {
   }
 
   final Dio _dio;
-
   Dio get raw => _dio;
 
-  /// Current bearer token, set after successful login.
+  static const _storageKey = 'resolara_token';
   static String? _token;
 
-  static void setToken(String? token) => _token = token;
-  static String? get token => _token;
+  static void setToken(String? token, {bool persist = false}) {
+    _token = token;
+    if (persist && token != null) {
+      html.window.localStorage[_storageKey] = token;
+    } else if (token == null) {
+      html.window.localStorage.remove(_storageKey);
+    }
+  }
+
+  static String? get token {
+    _token ??= html.window.localStorage[_storageKey];
+    return _token;
+  }
+
+  static void clearToken() {
+    _token = null;
+    html.window.localStorage.remove(_storageKey);
+  }
 
   static Dio _build() {
     final dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 15),
+        // Do NOT set connectTimeout or sendTimeout on web — they cause Dio's
+        // BrowserHttpClientAdapter to register xhr.upload event listeners,
+        // which forces CORS preflight on every request with a body.
+        // receiveTimeout uses a Dart Timer and doesn't affect CORS.
         receiveTimeout: const Duration(seconds: 30),
-        sendTimeout: const Duration(seconds: 30),
         contentType: Headers.jsonContentType,
         responseType: ResponseType.json,
         validateStatus: (status) => status != null && status < 500,
       ),
     );
+
+    // withCredentials must be false when server uses Access-Control-Allow-Origin: *
+    // (wildcard + credentials is illegal per CORS spec).
+    dio.httpClientAdapter = BrowserHttpClientAdapter(withCredentials: false);
+
     dio.interceptors.add(_AuthInterceptor());
     return dio;
   }
@@ -47,7 +67,6 @@ class ClinicApiClient {
   );
 }
 
-/// Adds Authorization: Bearer header when a token is stored.
 class _AuthInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

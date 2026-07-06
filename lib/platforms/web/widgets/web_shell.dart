@@ -97,12 +97,15 @@ class _TopBar extends ConsumerWidget {
   }
 }
 
-class _SideNav extends StatelessWidget {
+class _SideNav extends ConsumerWidget {
   const _SideNav();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
+    final auth = ref.watch(clinicAuthProvider);
+    final isAdmin = auth is AuthLoggedIn && auth.user.role == 'admin';
+
     return Container(
       width: 220,
       decoration: BoxDecoration(
@@ -121,6 +124,9 @@ class _SideNav extends StatelessWidget {
               location == '/upload'),
           _navItem(context, Icons.people_outline, 'Patients', '/patients',
               location.startsWith('/patients')),
+          if (isAdmin)
+            _navItem(context, Icons.admin_panel_settings_outlined, 'Admin', '/admin',
+                location == '/admin'),
         ],
       ),
     );

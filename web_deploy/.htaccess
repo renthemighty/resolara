@@ -25,7 +25,7 @@ RewriteRule . /index.html [L]
   Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 
-<FilesMatch "^(index\.html|manifest\.json|flutter_service_worker\.js|flutter_bootstrap\.js|flutter\.js|version\.json)$">
+<FilesMatch "^(index\.html|manifest\.json|flutter_service_worker\.js|flutter_bootstrap\.js|flutter\.js|version\.json|main\.dart\.js)$">
   Header set Cache-Control "no-cache, must-revalidate"
 </FilesMatch>
 

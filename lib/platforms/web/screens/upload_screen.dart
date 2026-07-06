@@ -31,6 +31,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Uint8List? _selectedFileBytes;
   String? _selectedFileMime;
 
+  // Patient picker state
+  Map<String, dynamic>? _selectedPatient;
+  bool _showPatientPicker = false;
+
   static const _allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'tif', 'tiff'];
   static const _maxSize = 52428800; // 50 MB
 
@@ -71,16 +75,19 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     });
 
     try {
+      if (_selectedPatient == null) {
+        setState(() => _error = 'Select a patient before uploading');
+        setState(() => _uploading = false);
+        return;
+      }
+
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(
           _selectedFileBytes!,
           filename: _selectedFileName,
           contentType: DioMediaType.parse(_selectedFileMime ?? 'application/octet-stream'),
         ),
-        // TODO(patient-picker): show a patient search/create dialog before
-        // upload so we can pass a real patient_id. For now the backend will
-        // reject this — the patient picker must be wired first.
-        'patient_id': 'placeholder',
+        'patient_id': _selectedPatient!['id'] as String,
       });
 
       final dio = ClinicApiClient.instance.raw;
@@ -135,6 +142,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       _selectedFileBytes = null;
       _selectedFileName = null;
       _selectedFileMime = null;
+      _selectedPatient = null;
+      _showPatientPicker = false;
       _error = null;
     });
   }
@@ -207,7 +216,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     ),
                   ),
                 ] else ...[
-                  // File selected — preview + upload
+                  // File selected — preview + patient picker + upload
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -218,6 +227,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // File info row
                         Row(
                           children: [
                             Icon(
@@ -263,7 +273,27 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                               ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+
+                        // Patient picker
+                        _PatientPickerField(
+                          selectedPatient: _selectedPatient,
+                          expanded: _showPatientPicker,
+                          onToggle: _uploading ? null : () {
+                            setState(() => _showPatientPicker = !_showPatientPicker);
+                          },
+                          onSelected: (patient) {
+                            setState(() {
+                              _selectedPatient = patient;
+                              _showPatientPicker = false;
+                            });
+                          },
+                          onClear: _uploading ? null : () {
+                            setState(() => _selectedPatient = null);
+                          },
+                        ),
                         const SizedBox(height: 20),
+
                         if (_uploading) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
@@ -286,18 +316,22 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                           ),
                         ] else
                           ElevatedButton(
-                            onPressed: _upload,
+                            onPressed: _selectedPatient != null ? _upload : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.gold,
                               foregroundColor: AppTheme.forestTeal,
+                              disabledBackgroundColor: AppTheme.gold.withValues(alpha: 0.3),
+                              disabledForegroundColor: AppTheme.forestTeal.withValues(alpha: 0.5),
                               minimumSize: const Size(double.infinity, 48),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              'Upload and process',
-                              style: TextStyle(
+                            child: Text(
+                              _selectedPatient != null
+                                  ? 'Upload and process'
+                                  : 'Select a patient first',
+                              style: const TextStyle(
                                 fontFamily: AppTheme.fontFamily,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -322,18 +356,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       style: const TextStyle(color: Color(0xFFCF6679), fontSize: 13),
                     ),
                   ),
-                const SizedBox(height: 16),
-                Text(
-                  'Files are uploaded directly to Resolara and processed on '
-                  'Canadian servers. Original files are retained for 90 days '
-                  'then deleted.',
-                  style: TextStyle(
-                    fontFamily: AppTheme.fontFamily,
-                    fontSize: 12,
-                    color: AppTheme.sage,
-                    height: 1.5,
-                  ),
-                ),
               ],
             ),
           ),
@@ -356,5 +378,403 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       'tif' || 'tiff' => 'image/tiff',
       _ => 'application/octet-stream',
     };
+  }
+}
+
+/// Inline patient picker — shows a select field that expands into a search
+/// dropdown. Supports searching existing patients and creating new ones.
+class _PatientPickerField extends StatefulWidget {
+  const _PatientPickerField({
+    required this.selectedPatient,
+    required this.expanded,
+    required this.onToggle,
+    required this.onSelected,
+    required this.onClear,
+  });
+
+  final Map<String, dynamic>? selectedPatient;
+  final bool expanded;
+  final VoidCallback? onToggle;
+  final ValueChanged<Map<String, dynamic>> onSelected;
+  final VoidCallback? onClear;
+
+  @override
+  State<_PatientPickerField> createState() => _PatientPickerFieldState();
+}
+
+class _PatientPickerFieldState extends State<_PatientPickerField> {
+  final _searchCtrl = TextEditingController();
+  Timer? _debounce;
+  List<Map<String, dynamic>> _results = [];
+  bool _loading = false;
+  bool _showNewForm = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _search(value.trim());
+    });
+  }
+
+  Future<void> _search(String query) async {
+    setState(() => _loading = true);
+    try {
+      final dio = ClinicApiClient.instance.raw;
+      final params = <String, dynamic>{'limit': 10};
+      if (query.length >= 2) params['q'] = query;
+      final res = await dio.get('/v1/clinic/patients', queryParameters: params);
+      if (!mounted) return;
+      if ((res.statusCode ?? 0) == 200) {
+        final body = res.data as Map<String, dynamic>;
+        setState(() {
+          _results = List<Map<String, dynamic>>.from(body['patients'] as List);
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _PatientPickerField old) {
+    super.didUpdateWidget(old);
+    if (widget.expanded && !old.expanded) {
+      _search('');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Selected patient display / toggle button
+        InkWell(
+          onTap: widget.onToggle,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A1F1C),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: widget.selectedPatient != null
+                    ? AppTheme.gold.withValues(alpha: 0.6)
+                    : const Color(0xFF1D3A31),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  widget.selectedPatient != null ? Icons.person : Icons.person_search,
+                  color: widget.selectedPatient != null ? AppTheme.gold : AppTheme.sage,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: widget.selectedPatient != null
+                      ? Text(
+                          '${widget.selectedPatient!['first_name']} ${widget.selectedPatient!['last_name']}',
+                          style: const TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.warmStone,
+                          ),
+                        )
+                      : Text(
+                          'Select patient...',
+                          style: TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            fontSize: 14,
+                            color: AppTheme.sage.withValues(alpha: 0.7),
+                          ),
+                        ),
+                ),
+                if (widget.selectedPatient != null)
+                  IconButton(
+                    onPressed: widget.onClear,
+                    icon: const Icon(Icons.close, size: 16),
+                    color: AppTheme.sage,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    tooltip: 'Clear selection',
+                  )
+                else
+                  Icon(
+                    widget.expanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppTheme.sage,
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // Expanded search dropdown
+        if (widget.expanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 280),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A1F1C),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF1D3A31)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Search input
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onChanged: _onSearchChanged,
+                    autofocus: true,
+                    style: const TextStyle(color: AppTheme.warmStone, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Search by name...',
+                      hintStyle: TextStyle(color: AppTheme.sage.withValues(alpha: 0.5)),
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.sage, size: 18),
+                      filled: true,
+                      fillColor: const Color(0xFF122B21),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide.none,
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+
+                // Results
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.gold),
+                    ),
+                  )
+                else if (_results.isEmpty && !_showNewForm)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Text(
+                          _searchCtrl.text.length >= 2
+                              ? 'No patients found'
+                              : 'Type to search, or add a new patient',
+                          style: const TextStyle(color: AppTheme.sage, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () => setState(() => _showNewForm = true),
+                          icon: const Icon(Icons.person_add, size: 16),
+                          label: const Text('New patient'),
+                          style: TextButton.styleFrom(foregroundColor: AppTheme.gold),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (!_showNewForm)
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(bottom: 4),
+                      children: [
+                        for (final p in _results)
+                          ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            title: Text(
+                              '${p['first_name']} ${p['last_name']}',
+                              style: const TextStyle(
+                                fontFamily: AppTheme.fontFamily,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.warmStone,
+                              ),
+                            ),
+                            subtitle: Text(
+                              [
+                                if (p['dob'] != null && (p['dob'] as String).isNotEmpty) 'DOB ${p['dob']}',
+                                if (p['email'] != null && (p['email'] as String).isNotEmpty) p['email'] as String,
+                              ].join(' · '),
+                              style: const TextStyle(fontSize: 11, color: AppTheme.sage),
+                            ),
+                            onTap: () => widget.onSelected(p),
+                          ),
+                        // "Add new" at bottom of results
+                        ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                          leading: const Icon(Icons.person_add, size: 16, color: AppTheme.gold),
+                          title: const Text(
+                            'Add new patient',
+                            style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontSize: 13,
+                              color: AppTheme.gold,
+                            ),
+                          ),
+                          onTap: () => setState(() => _showNewForm = true),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Inline new patient form
+                if (_showNewForm)
+                  _InlineNewPatient(
+                    onCreated: (patient) {
+                      setState(() => _showNewForm = false);
+                      widget.onSelected(patient);
+                    },
+                    onCancel: () => setState(() => _showNewForm = false),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Compact inline form for creating a new patient from the picker dropdown.
+class _InlineNewPatient extends StatefulWidget {
+  const _InlineNewPatient({required this.onCreated, required this.onCancel});
+
+  final ValueChanged<Map<String, dynamic>> onCreated;
+  final VoidCallback onCancel;
+
+  @override
+  State<_InlineNewPatient> createState() => _InlineNewPatientState();
+}
+
+class _InlineNewPatientState extends State<_InlineNewPatient> {
+  final _firstCtrl = TextEditingController();
+  final _lastCtrl = TextEditingController();
+  final _dobCtrl = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _firstCtrl.dispose();
+    _lastCtrl.dispose();
+    _dobCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final first = _firstCtrl.text.trim();
+    final last = _lastCtrl.text.trim();
+    if (first.isEmpty || last.isEmpty) return;
+
+    setState(() { _submitting = true; _error = null; });
+    try {
+      final dio = ClinicApiClient.instance.raw;
+      final res = await dio.post('/v1/clinic/patients', data: {
+        'first_name': first,
+        'last_name': last,
+        if (_dobCtrl.text.trim().isNotEmpty) 'dob': _dobCtrl.text.trim(),
+      });
+      if (!mounted) return;
+      if ((res.statusCode ?? 0) == 201) {
+        widget.onCreated(res.data as Map<String, dynamic>);
+      } else {
+        final body = res.data as Map<String, dynamic>? ?? {};
+        setState(() {
+          _submitting = false;
+          _error = body['error'] as String? ?? 'Failed to create patient';
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _submitting = false; _error = '$e'; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _field(_firstCtrl, 'First name *')),
+              const SizedBox(width: 8),
+              Expanded(child: _field(_lastCtrl, 'Last name *')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _field(_dobCtrl, 'DOB (YYYY-MM-DD)'),
+          if (_error != null) ...[
+            const SizedBox(height: 6),
+            Text(_error!, style: const TextStyle(color: Color(0xFFCF6679), fontSize: 11)),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: _submitting ? null : widget.onCancel,
+                child: const Text('Cancel', style: TextStyle(color: AppTheme.sage, fontSize: 12)),
+              ),
+              const SizedBox(width: 6),
+              ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.gold,
+                  foregroundColor: AppTheme.forestTeal,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.forestTeal),
+                      )
+                    : const Text('Create and select', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      enabled: !_submitting,
+      style: const TextStyle(color: AppTheme.warmStone, fontSize: 12),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: AppTheme.sage, fontSize: 11),
+        filled: true,
+        fillColor: const Color(0xFF122B21),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide.none,
+        ),
+        isDense: true,
+      ),
+    );
   }
 }

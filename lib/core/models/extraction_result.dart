@@ -5,6 +5,7 @@ class Finding {
   final String laymanTerm;
   final double confidence; // 0.0–1.0
   final bool piiRisk;
+  final int? sourceDocumentIndex;
 
   const Finding({
     required this.id,
@@ -13,6 +14,7 @@ class Finding {
     this.laymanTerm = '',
     required this.confidence,
     required this.piiRisk,
+    this.sourceDocumentIndex,
   });
 
   factory Finding.fromJson(Map<String, dynamic> json) {
@@ -23,10 +25,11 @@ class Finding {
       laymanTerm: json['layman_term'] as String? ?? '',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       piiRisk: json['pii_risk'] as bool? ?? false,
+      sourceDocumentIndex: json['source_document_index'] as int?,
     );
   }
 
-  Finding copyWith({String? bodyRegion, String? text}) {
+  Finding copyWith({String? bodyRegion, String? text, int? sourceDocumentIndex}) {
     return Finding(
       id: id,
       bodyRegion: bodyRegion ?? this.bodyRegion,
@@ -34,6 +37,7 @@ class Finding {
       laymanTerm: laymanTerm,
       confidence: confidence,
       piiRisk: piiRisk,
+      sourceDocumentIndex: sourceDocumentIndex ?? this.sourceDocumentIndex,
     );
   }
 
@@ -78,4 +82,24 @@ class ExtractionResult {
 
   bool get hasPiiWarnings => piiDetected.isNotEmpty;
   bool get hasLowConfidence => findings.any((f) => f.isLowConfidence);
+
+  static ExtractionResult merge(List<ExtractionResult> results) {
+    final findings = <Finding>[];
+    for (int i = 0; i < results.length; i++) {
+      for (final f in results[i].findings) {
+        findings.add(f.copyWith(sourceDocumentIndex: i));
+      }
+    }
+    double minConf = 1.0;
+    for (final r in results) {
+      if (r.overallConfidence < minConf) minConf = r.overallConfidence;
+    }
+    return ExtractionResult(
+      findings: findings,
+      piiDetected: results.expand((r) => r.piiDetected).toList(),
+      overallConfidence: minConf,
+      tokensIn: results.fold(0, (sum, r) => sum + r.tokensIn),
+      tokensOut: results.fold(0, (sum, r) => sum + r.tokensOut),
+    );
+  }
 }

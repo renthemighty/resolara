@@ -51,7 +51,12 @@ class VisualizationsHandler {
         $device = Auth::require();
         $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $patientName  = substr(strip_tags((string)($body['patient_name'] ?? '')), 0, 100);
+        // The patient name is intentionally DISCARDED here: never stored, never
+        // forwarded to any AI vendor. It is a direct HIPAA identifier and has no
+        // generative purpose (the name is stamped on-device after generation).
+        // Older app builds may still POST `patient_name`; dropping it server-side
+        // means a stale client cannot reintroduce the leak.
+        $patientName  = '';
         $directPrompt = trim((string)($body['prompt'] ?? ''));
 
         if ($directPrompt !== '') {

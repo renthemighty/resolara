@@ -71,7 +71,9 @@ PROMPT;
         $parsed = json_decode($text, true);
 
         if (!is_array($parsed)) {
-            error_log('ExplanationHandler: unexpected Claude response: ' . $text);
+            // Do not log $text — it is Claude's raw output for a findings-
+            // derived explanation prompt and may contain clinical content.
+            error_log('ExplanationHandler: unexpected Claude response (length ' . strlen($text) . ')');
             return [];
         }
 

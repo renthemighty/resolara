@@ -66,7 +66,9 @@ PROMPT;
         $parsed = json_decode($text, true);
 
         if (!is_array($parsed)) {
-            error_log('MedicationsHandler: unexpected Claude response: ' . $text);
+            // Do not log $text — it is Claude's raw output for a findings-
+            // derived medication prompt and may contain clinical content.
+            error_log('MedicationsHandler: unexpected Claude response (length ' . strlen($text) . ')');
             return [];
         }
 

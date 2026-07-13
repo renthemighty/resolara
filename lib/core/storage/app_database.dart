@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:sqlite3/open.dart' as sqlite3_open;
 
 part 'app_database.g.dart';
 
@@ -204,7 +206,12 @@ AppDatabase? _dbInstance;
 Future<AppDatabase> openAppDatabase() async {
   if (_dbInstance != null) return _dbInstance!;
 
-  const storage = FlutterSecureStorage();
+  // first_unlock_this_device: readable once the device has been unlocked
+  // once after boot, tied to this device (not restored to a new device via
+  // an iCloud Keychain backup) — appropriate for a local DB encryption key.
+  const storage = FlutterSecureStorage(
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+  );
   const keyName = 'resolara_db_key';
 
   var dbKey = await storage.read(key: keyName);
@@ -215,10 +222,61 @@ Future<AppDatabase> openAppDatabase() async {
     await storage.write(key: keyName, value: dbKey);
   }
 
+  // sqlite3's default `open()` resolves to the plain (non-cipher) native lib
+  // on Android; sqlcipher_flutter_libs ships both and this picks the cipher
+  // one. iOS/macOS get SQLCipher via the pod itself (linked at build time),
+  // no override needed there.
+  if (Platform.isAndroid) {
+    sqlite3_open.open.overrideFor(
+      sqlite3_open.OperatingSystem.android,
+      openCipherOnAndroid,
+    );
+  }
+
   final dir = await getApplicationDocumentsDirectory();
   final dbFile = File(p.join(dir.path, 'resolara.db'));
 
-  _dbInstance = AppDatabase(NativeDatabase(dbFile));
+  NativeDatabase openEncrypted() => NativeDatabase(
+        dbFile,
+        setup: (rawDb) {
+          // Raw 256-bit hex key (skips SQLCipher's PBKDF2 passphrase
+          // stretching, which is redundant — dbKey is already a
+          // cryptographically random 32-byte key, not a human passphrase).
+          rawDb.execute("PRAGMA key = \"x'$dbKey'\";");
+          // PRAGMA key silently no-ops if the SQLCipher native lib didn't
+          // actually load (e.g. override above failed, or a build is
+          // missing the cipher pod) — this DB would then open unencrypted
+          // with no error. Verify the cipher engine is really active and
+          // refuse to proceed otherwise, so a build regression fails loudly
+          // instead of writing cleartext PHI to disk.
+          final rows = rawDb.select('PRAGMA cipher_version;');
+          final version = rows.isEmpty ? null : rows.first.values.first as String?;
+          if (version == null || version.isEmpty) {
+            throw StateError(
+              'SQLCipher did not load — refusing to open the database '
+              'unencrypted.',
+            );
+          }
+        },
+      );
+
+  AppDatabase database = AppDatabase(openEncrypted());
+  try {
+    // NativeDatabase opens lazily on first use; force that now so a wrong
+    // key or a pre-existing plaintext database (from before this change)
+    // fails here, not on some unrelated screen's first query.
+    await database.customSelect('select count(*) from sqlite_master').get();
+  } catch (_) {
+    // App has no live users / demo data only — no migration path needed.
+    // Treat "can't open with the current key" as "stale/plaintext database
+    // from before encryption" and recreate it fresh under the new key.
+    await database.close().catchError((_) {});
+    if (await dbFile.exists()) await dbFile.delete();
+    database = AppDatabase(openEncrypted());
+    await database.customSelect('select count(*) from sqlite_master').get();
+  }
+
+  _dbInstance = database;
   await _dbInstance!.cleanupExpired();
   return _dbInstance!;
 }

@@ -81,7 +81,10 @@ PROMPT;
 
         $parsed = json_decode($text, true);
         if (!is_array($parsed) || !array_key_exists('findings', $parsed)) {
-            throw new RuntimeException('Claude returned unexpected format: ' . substr($text, 0, 200));
+            // Do not include $text in the exception message — it is Claude's
+            // raw output and may contain clinical findings text. Callers log
+            // getMessage() to operational logs; keep it structured only.
+            throw new RuntimeException('Claude returned unexpected format (length ' . strlen($text) . ')');
         }
         return $parsed;
     }
@@ -125,7 +128,21 @@ PROMPT;
         curl_close($ch);
 
         if ($body === false || $code !== 200) {
-            throw new RuntimeException('Claude API error ' . $code . ': ' . substr($body, 0, 300));
+            // Do not include the raw response body — vendor error responses
+            // can echo back parts of the request (which may contain cleaned
+            // report text/findings). Log only the HTTP status and, where
+            // present, the vendor's short error "type" (never "message",
+            // which is the free-text field most likely to quote input).
+            $errorType = null;
+            if (is_string($body)) {
+                $decoded = json_decode($body, true);
+                if (is_array($decoded)) {
+                    $errorType = $decoded['error']['type'] ?? null;
+                }
+            }
+            throw new RuntimeException(
+                'Claude API error ' . $code . ($errorType ? ' (' . $errorType . ')' : '')
+            );
         }
         return json_decode($body, true);
     }

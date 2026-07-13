@@ -107,7 +107,9 @@ class JobsHandler {
                 'UPDATE jobs SET status = ?, result_json = ?, updated_at = NOW() WHERE id = ?'
             )->execute(['completed', json_encode($result), $jobId]);
         } catch (Throwable $e) {
-            error_log('Job ' . $jobId . ' failed: ' . $e->getMessage());
+            // Exception class + job id only — getMessage() can carry Claude
+            // response content (extractFindings) or vendor error bodies.
+            error_log('Job ' . $jobId . ' failed: ' . get_class($e));
             $db->prepare(
                 'UPDATE jobs SET status = ?, error_message = ?, updated_at = NOW() WHERE id = ?'
             )->execute(['failed', 'Processing failed. Please try again.', $jobId]);

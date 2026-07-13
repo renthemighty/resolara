@@ -54,7 +54,10 @@ class PatientHandler {
         try {
             EmailService::sendMagicLink($email, $token);
         } catch (Throwable $e) {
-            error_log('PatientHandler: email failed for ' . $email . ': ' . $e->getMessage());
+            // Log the user id, not the email address, and the exception
+            // class rather than getMessage() (SMTP error text can include
+            // the recipient address).
+            error_log('PatientHandler: magic link email failed for user ' . $userId . ': ' . get_class($e));
             Response::error('Could not send login email. Please try again.', 500);
         }
 

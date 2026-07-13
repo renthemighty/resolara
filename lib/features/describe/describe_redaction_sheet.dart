@@ -2,33 +2,37 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/services/redaction/redaction.dart';
 
-/// Lightweight in-screen confirmation gate for the "Describe Instead" free
-/// text path.
+/// Confirmation gate for the "Describe Instead" free text path.
 ///
-/// Unlike the OCR path (which uses a full review screen), the practitioner
-/// just typed or dictated this text themselves, so a bottom sheet is enough:
-/// it shows what will be redacted, lets the practitioner dismiss any
-/// detected span that isn't actually an identifier, and previews the exact
-/// text that will be sent. Returns the practitioner-approved [RedactionAnalysis]
-/// on confirm, or `null` if they back out to keep editing.
+/// This is the exact point where a practitioner types or dictates raw
+/// identifiers, so it enforces the same safety properties as the OCR path's
+/// full review screen ([lib/features/redaction/redaction_review_screen.dart]),
+/// just in a lighter bottom-sheet shell since this text is short and
+/// self-authored:
+///  - deterministic spans (dates, MRNs, emails, etc.) are pre-redacted, but
+///    lower-confidence spans start `pending` and the practitioner must
+///    actively resolve (redact or keep) every one of them before Send
+///    unlocks — no one-tap accept-all.
+///  - when the engine finds nothing, Send is disabled until the
+///    practitioner ticks an explicit "I confirm this contains no
+///    patient-identifying information" attestation.
+/// Returns the practitioner-approved [RedactionAnalysis] on confirm, or
+/// `null` if they back out to keep editing.
 class DescribeRedactionSheet extends StatefulWidget {
   final RedactionAnalysis analysis;
   const DescribeRedactionSheet({super.key, required this.analysis});
 
-  /// Shows the sheet. All spans start accepted (matching "redact by
-  /// default"); the practitioner can dismiss individual false positives.
-  /// Returns the resolved [RedactionAnalysis] if the practitioner confirms
-  /// sending, or `null` if they cancel to keep editing.
+  /// Shows the sheet and returns the resolved [RedactionAnalysis] if the
+  /// practitioner confirms sending, or `null` if they cancel to keep editing.
   static Future<RedactionAnalysis?> show(
     BuildContext context,
     RedactionAnalysis analysis,
   ) {
-    for (final span in analysis.spans) {
-      span.decision = SpanDecision.accepted;
-    }
     return showModalBottomSheet<RedactionAnalysis>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => DescribeRedactionSheet(analysis: analysis),
@@ -40,8 +44,40 @@ class DescribeRedactionSheet extends StatefulWidget {
 }
 
 class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
+  bool _attested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deterministic spans are pre-redacted by default — the practitioner
+    // only has to actively resolve the lower-confidence likely/candidate
+    // spans (mirrors the OCR review screen's discipline). Tapping a
+    // deterministic chip can still restore it.
+    for (final s in widget.analysis.spans) {
+      if (s.confidence == SpanConfidence.deterministic &&
+          s.decision == SpanDecision.pending) {
+        s.decision = SpanDecision.accepted;
+      }
+    }
+  }
+
+  bool get _isZeroFindings => widget.analysis.spans.isEmpty;
+
+  /// Nothing can be sent until every span has been actively resolved and,
+  /// in the zero-findings case, the practitioner has attested to reading
+  /// the full text.
+  bool get _canSend {
+    final noPending = widget.analysis.spans
+        .every((s) => s.decision != SpanDecision.pending);
+    if (!noPending) return false;
+    if (_isZeroFindings && !_attested) return false;
+    return true;
+  }
+
   void _toggle(RedactionSpan span) {
     setState(() {
+      // From pending or dismissed, a tap redacts (resolves the span);
+      // from accepted, a tap restores the original text.
       span.decision = span.decision == SpanDecision.accepted
           ? SpanDecision.dismissed
           : SpanDecision.accepted;
@@ -54,6 +90,7 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final spans = widget.analysis.spans;
     final acceptedCount = spans.where((s) => s.decision == SpanDecision.accepted).length;
+    final pendingCount = spans.where((s) => s.decision == SpanDecision.pending).length;
     final preview = widget.analysis.buildRedactedText();
 
     return Padding(
@@ -74,22 +111,34 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
                 children: [
                   const Icon(Icons.shield_outlined, color: AppTheme.gold, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    acceptedCount > 0
-                        ? 'Review before sending'
-                        : 'Nothing detected to redact',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      _isZeroFindings
+                          ? 'Nothing detected to redact'
+                          : pendingCount > 0
+                              ? '$pendingCount item${pendingCount == 1 ? '' : 's'} need${pendingCount == 1 ? 's' : ''} your review'
+                              : 'Review before sending',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
-                acceptedCount > 0
-                    ? '${widget.analysis.buildSummary()} will be removed before this is sent to our servers.'
-                    : 'No identifiers were detected in this text, but automatic detection is not guaranteed. '
-                        'Go back and edit if it still contains a name, date of birth, or other identifying detail.',
+                _isZeroFindings
+                    ? 'No identifiers were detected in this text, but automatic detection is not guaranteed. '
+                        'Read it carefully — if it still contains a name, date of birth, or other identifying '
+                        'detail, go back and edit before sending.'
+                    : '${widget.analysis.buildSummary()} will be removed before this is sent to our servers.',
                 style: TextStyle(fontSize: 13, color: onSurface.withOpacity(0.7)),
               ),
+              if (_isZeroFindings) ...[
+                const SizedBox(height: 12),
+                _AttestationCheckbox(
+                  value: _attested,
+                  onChanged: (v) => setState(() => _attested = v),
+                ),
+              ],
               if (spans.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 ...spans.map((span) => _SpanTile(
@@ -123,9 +172,9 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(widget.analysis),
+                onPressed: _canSend ? () => Navigator.of(context).pop(widget.analysis) : null,
                 icon: const Icon(Icons.send_outlined, size: 18),
-                label: const Text('Send redacted text'),
+                label: Text(_isZeroFindings ? 'Send unredacted text' : 'Send redacted text'),
               ),
               const SizedBox(height: 10),
               OutlinedButton(
@@ -151,6 +200,7 @@ class _SpanTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pending = span.decision == SpanDecision.pending;
     final accepted = span.decision == SpanDecision.accepted;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
@@ -161,14 +211,28 @@ class _SpanTile extends StatelessWidget {
         child: InkWell(
           onTap: onToggle,
           borderRadius: BorderRadius.circular(10),
-          child: Padding(
+          child: Container(
+            decoration: pending
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.gold, width: 1),
+                  )
+                : null,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
                 Icon(
-                  accepted ? Icons.check_box : Icons.check_box_outline_blank,
+                  pending
+                      ? Icons.priority_high_rounded
+                      : accepted
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
                   size: 20,
-                  color: accepted ? AppTheme.gold : onSurface.withOpacity(0.4),
+                  color: pending
+                      ? AppTheme.gold
+                      : accepted
+                          ? AppTheme.gold
+                          : onSurface.withOpacity(0.4),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -191,17 +255,54 @@ class _SpanTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  accepted ? 'Redact' : 'Keep',
+                  pending ? 'Tap to resolve' : (accepted ? 'Redact' : 'Keep'),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: accepted ? AppTheme.gold : onSurface.withOpacity(0.5),
+                    color: pending
+                        ? AppTheme.gold
+                        : accepted
+                            ? AppTheme.gold
+                            : onSurface.withOpacity(0.5),
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AttestationCheckbox extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _AttestationCheckbox({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: value,
+            onChanged: (v) => onChanged(v ?? false),
+            activeColor: AppTheme.emerald,
+          ),
+          const Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'I confirm this contains no patient-identifying information.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

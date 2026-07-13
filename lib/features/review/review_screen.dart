@@ -18,6 +18,7 @@ import '../../core/api/generation_service.dart';
 import '../../core/api/share_service.dart';
 import '../../core/api/exercises_service.dart';
 import '../../core/api/medications_service.dart';
+import '../../core/services/redaction/redaction.dart';
 import '../../core/models/exercise.dart';
 import '../../core/models/explanation.dart';
 import '../../core/models/extraction_result.dart';
@@ -110,6 +111,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   // ── Saving ─────────────────────────────────────────────────────────────────
   bool _saving = false;
+
+  // ── PII re-redaction (edited findings) ─────────────────────────────────────
+  // The original findings were already screened once by the practitioner on
+  // the OCR redaction gate. But findings can be freely edited afterward in
+  // the Details sheet, and those edits are unreviewed free text — so before
+  // any of them leave the device to an AI endpoint they are re-run through
+  // the same on-device engine. Only surface a confirmation to the
+  // practitioner the first time this catches something in a session, so the
+  // explanation/exercise/medication chain (which fires automatically) does
+  // not stack repeated dialogs.
+  bool _piiNotified = false;
 
   @override
   void initState() {
@@ -311,13 +323,61 @@ class _ReviewScreenState extends State<ReviewScreen> {
     await Share.shareXFiles([XFile(file.path, mimeType: 'image/png')], subject: subject);
   }
 
+  // ── PII re-redaction (edited findings) ─────────────────────────────────────
+
+  /// Runs [findings] back through [RedactionEngine.analyze] and returns a
+  /// redacted copy safe to send to an AI endpoint. Does not mutate
+  /// [_editableFindings] — the practitioner's editable copy keeps their raw
+  /// text so they can keep working with it; only the payload handed to the
+  /// network is cleaned.
+  Future<List<Finding>> _reRedactFindings(List<Finding> findings) async {
+    var flaggedCount = 0;
+    final cleaned = findings.map((f) {
+      final textAnalysis = RedactionEngine.analyze(f.text);
+      final regionAnalysis = RedactionEngine.analyze(f.bodyRegion);
+      if (textAnalysis.spans.isEmpty && regionAnalysis.spans.isEmpty) return f;
+      for (final s in textAnalysis.spans) {
+        s.decision = SpanDecision.accepted;
+      }
+      for (final s in regionAnalysis.spans) {
+        s.decision = SpanDecision.accepted;
+      }
+      flaggedCount++;
+      return f.copyWith(
+        text: textAnalysis.buildRedactedText(),
+        bodyRegion: regionAnalysis.buildRedactedText(),
+      );
+    }).toList();
+
+    if (flaggedCount > 0 && !_piiNotified && mounted) {
+      _piiNotified = true;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Identifying information detected'),
+          content: Text(
+            'Possible patient-identifying information was found in '
+            '${flaggedCount == 1 ? 'an edited finding' : '$flaggedCount edited findings'} '
+            'and has been removed before sending.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
+    return cleaned;
+  }
+
   // ── Explanation loading ────────────────────────────────────────────────────
 
   Future<void> _loadExplanations() async {
     if (_explanationLoading) return;
     setState(() { _explanationLoading = true; _explanationError = null; });
     try {
-      final results = await ExplanationService().fetchExplanations(_editableFindings);
+      final safeFindings = await _reRedactFindings(_editableFindings);
+      if (!mounted) return;
+      final results = await ExplanationService().fetchExplanations(safeFindings);
       if (!mounted) return;
       setState(() {
         _explanations = results;
@@ -337,7 +397,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _loadExercises(RecoveryPhase phase) async {
     setState(() { _exercisePhase = phase; _exercisesLoading = true; _exercisesError = null; _exercises = []; });
     try {
-      final results = await ExercisesService().fetchExercises(_editableFindings, phase);
+      final safeFindings = await _reRedactFindings(_editableFindings);
+      if (!mounted) return;
+      final results = await ExercisesService().fetchExercises(safeFindings, phase);
       if (!mounted) return;
       final entries = results.map((e) => ExerciseEntry(exercise: e)).toList();
       setState(() {
@@ -386,7 +448,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (_medicationsLoading) return;
     setState(() { _medicationsLoading = true; _medicationsError = null; });
     try {
-      final meds = await MedicationsService().fetchSuggestions(_editableFindings);
+      final safeFindings = await _reRedactFindings(_editableFindings);
+      if (!mounted) return;
+      final meds = await MedicationsService().fetchSuggestions(safeFindings);
       if (!mounted) return;
       setState(() {
         _medications = meds.map((m) => MedicationEntry(medication: m)).toList();

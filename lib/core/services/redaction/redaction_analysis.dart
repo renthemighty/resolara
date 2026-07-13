@@ -60,6 +60,41 @@ class RedactionAnalysis {
     );
     if (hasPendingCandidateName) return RiskLevel.high;
 
+    // Heuristic hardening (M8): the old logic only forced the attestation
+    // gate on zero findings or a still-pending NAME candidate. That leans
+    // on the human exactly where the engine already failed silently — if
+    // the engine missed a name entirely (e.g. an allowlist/detector gap)
+    // but still caught some unrelated span (one date is enough), risk
+    // read as merely "elevated" and the practitioner only got a bare
+    // scroll, not a forced careful read. Two independent, detector-output
+    // -agnostic proxies for "this document probably carries a name" close
+    // that gap, because they can't be fooled by the same miss that fooled
+    // the name detector:
+    //   1. Document length. A genuine clinical report is essentially
+    //      never a single short line — demographics header, history,
+    //      findings, impression, and signature block push it past a
+    //      handful of lines. Treat "long, multi-line document" as a proxy
+    //      for "probably name-bearing" regardless of what was actually
+    //      detected.
+    //   2. Any pending candidate-confidence span (not just NAME) is a
+    //      signal the engine itself is unsure about part of the document
+    //      — header-zone/bigram/other-id candidates all share that
+    //      lower-confidence tier for a reason.
+    // Neither check is a guarantee, but the goal is a defensible bias
+    // toward forcing the careful-read gate on anything that looks like a
+    // real multi-line report, not a coin flip on whether a name detector
+    // happened to fire.
+    final nonEmptyLines =
+        originalText.split('\n').where((l) => l.trim().isNotEmpty).length;
+    if (nonEmptyLines >= 4) return RiskLevel.high;
+
+    final hasPendingCandidate = spans.any(
+      (s) =>
+          s.decision == SpanDecision.pending &&
+          s.confidence == SpanConfidence.candidate,
+    );
+    if (hasPendingCandidate) return RiskLevel.high;
+
     final hasPending = spans.any((s) => s.decision == SpanDecision.pending);
     if (hasPending) return RiskLevel.elevated;
 

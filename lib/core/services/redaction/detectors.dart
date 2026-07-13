@@ -280,8 +280,12 @@ List<RawSpan> detectPostal(String text) {
 
 List<RawSpan> detectAge90Plus(String text) {
   return _spansFor(
+    // `[\s-]*` (not `\s*`) between the number and the unit word — dictated/
+    // typed ages are frequently hyphenated ("92-year-old"), and a plain
+    // `\s*` can't consume that hyphen, so the whole match failed to anchor
+    // and 90+ hyphenated ages leaked unredacted.
     RegExp(
-      r'\b(9\d|1[0-4]\d)\s*(y\.?o\.?|yo|yrs?|years?[\s-]old)\b',
+      r'\b(9\d|1[0-4]\d)[\s-]*(y\.?o\.?|yo|yrs?|years?[\s-]old)\b',
       caseSensitive: false,
     ).allMatches(text),
     text,
@@ -295,18 +299,55 @@ List<RawSpan> detectAge90Plus(String text) {
 // Deterministic: labelled IDs (MRN / ACCOUNT / LICENCE / DEVICE_ID / HEALTH_ID)
 // ---------------------------------------------------------------------------
 
-List<RawSpan> _labelledId(String text, String labelAlternation, String category) {
-  final re = RegExp(
-    r'\b(?:' + labelAlternation + r')\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,20})',
+// Value pattern for a single-token labelled ID (ACCOUNT, LICENCE,
+// DEVICE_ID) — unchanged from the original behaviour.
+final _idSingleTokenRe = RegExp(r'[A-Za-z0-9][A-Za-z0-9\-]{2,20}');
+
+// Value pattern for a *spaced/hyphenated number group* — real MRN/health
+// card numbers are frequently written or dictated in chunks ("1234 567
+// 890 XY", "44 82 19 7") rather than as one contiguous token. Consumes a
+// leading digit run, then up to 5 more space-separated digit runs, then an
+// optional trailing short version/check code. The trailing code is
+// deliberately restricted to 1-3 UPPERCASE letters (via a case-*sensitive*
+// regex, matching the split-case technique [_titledName] uses below) so it
+// can't accidentally swallow the next real word in the sentence — ordinary
+// prose words are lowercase and/or longer than 3 characters, so
+// "MRN: 12345678 confirms identity." still stops right after the digits.
+final _idMultiTokenNumberRe = RegExp(
+  r'\d[\d\-]{0,19}(?:[ \t]+\d[\d\-]{0,19}){0,5}(?:[ \t]+[A-Z]{1,3}\b)?',
+);
+
+/// Matches a case-insensitive label (MRN:, Health Card #, ...) then
+/// captures the ID value immediately after it via [matchAsPrefix] — same
+/// split-case shape as [_titledName] (label case-insensitive, value
+/// case-sensitive where that matters) so the multi-token trailing-code
+/// restriction above actually holds.
+List<RawSpan> _labelledId(
+  String text,
+  String labelAlternation,
+  String category, {
+  bool multiTokenNumber = false,
+}) {
+  final labelRe = RegExp(
+    r'\b(?:' + labelAlternation + r')\s*[:#]?\s*',
     caseSensitive: false,
   );
-  return _spansFor(
-    re.allMatches(text),
-    text,
-    category,
-    SpanConfidence.deterministic,
-    SpanSource.regex,
-  );
+  final valueRe = multiTokenNumber ? _idMultiTokenNumberRe : _idSingleTokenRe;
+
+  final spans = <RawSpan>[];
+  for (final labelMatch in labelRe.allMatches(text)) {
+    final valueMatch = valueRe.matchAsPrefix(text, labelMatch.end);
+    if (valueMatch == null) continue;
+    spans.add(RawSpan(
+      start: labelMatch.start,
+      end: valueMatch.end,
+      category: category,
+      confidence: SpanConfidence.deterministic,
+      source: SpanSource.regex,
+      originalText: text.substring(labelMatch.start, valueMatch.end),
+    ));
+  }
+  return spans;
 }
 
 List<RawSpan> detectLabelledIds(String text) {
@@ -316,6 +357,7 @@ List<RawSpan> detectLabelledIds(String text) {
     text,
     r'MRN|Medical\s+Record\s*(?:No\.?|Number)?|Chart\s*#|Accession(?:\s*(?:No\.?|Number|#))?',
     'MRN',
+    multiTokenNumber: true,
   ));
 
   spans.addAll(_labelledId(
@@ -348,11 +390,26 @@ List<RawSpan> detectHealthId(String text) {
     r'Health\s*Card|HC|PHN|OHIP|Policy(?:\s*(?:No\.?|Number|#))?|'
     r'Member\s*(?:No\.?|ID)|Group\s*(?:No\.?|#)',
     'HEALTH_ID',
+    multiTokenNumber: true,
   ));
 
-  // Ontario OHIP: 10 digits + 2-letter version code, unlabelled.
+  // Ontario OHIP: 10 digits + 0-2 letter version code, unlabelled,
+  // separator-tolerant. Real cards/dictation write it in chunks
+  // ("1234 567 890 XY" or "1234-567-890-XY"), not always as one
+  // contiguous token — this supersedes the old strict `\d{10}[A-Za-z]{2}`
+  // form (which is just the zero-separator case of the same pattern).
   spans.addAll(_spansFor(
-    RegExp(r'\b\d{10}[A-Za-z]{2}\b').allMatches(text),
+    RegExp(r'\b\d{4}[-\s]?\d{3}[-\s]?\d{3}[-\s]?[A-Za-z]{0,2}\b')
+        .allMatches(text),
+    text,
+    'HEALTH_ID',
+    SpanConfidence.deterministic,
+    SpanSource.regex,
+  ));
+
+  // Québec RAMQ: 4 letters + 8 digits (commonly grouped in 4s), unlabelled.
+  spans.addAll(_spansFor(
+    RegExp(r'\b[A-Za-z]{4}\s?\d{4}\s?\d{4}\b').allMatches(text),
     text,
     'HEALTH_ID',
     SpanConfidence.deterministic,
@@ -368,9 +425,11 @@ List<RawSpan> detectHealthId(String text) {
     SpanSource.regex,
   ));
 
-  // Alberta ULI: bare 9 digits, unlabelled. Broad by nature (see engine
-  // report notes) — overlap resolution + SIN Luhn-check ordering keeps
-  // this from clobbering validated SINs.
+  // Alberta ULI / Manitoba PHIN: both are bare 9-digit numbers, unlabelled,
+  // so they share this one pattern — nothing distinguishes the two formats
+  // at the regex level. Broad by nature (see engine report notes) —
+  // overlap resolution + SIN Luhn-check ordering keeps this from
+  // clobbering validated SINs.
   spans.addAll(_spansFor(
     RegExp(r'\b\d{9}\b').allMatches(text),
     text,
@@ -537,12 +596,62 @@ List<RawSpan> detectProvider(String text) {
   );
 }
 
+const _wordAnyCase = r"[A-Za-zÀ-ž][A-Za-zÀ-ž'\-]*";
+final _wordAnyCaseRe = RegExp(_wordAnyCase);
+
+/// Case-insensitive counterpart to [_titledName], restricted to explicit
+/// name labels ("Patient:", "Name:", "Pt:", "Re:"). [_capWord] requires a
+/// leading capital, so a dictated/typed lowercase name right after one of
+/// these labels ("Patient: john smith") was silently missed entirely.
+///
+/// Deliberately narrow: only fires when the label is followed by a colon
+/// (or `#`), never on bare "Patient " prose — making name detection
+/// case-insensitive in general would flood false positives on every
+/// capitalized sentence start. The `label:` form is unambiguous enough to
+/// allow lowercase capture safely.
+List<RawSpan> _labelledNameAnyCase(
+  String text,
+  String labelAlternation,
+  String category,
+) {
+  final labelRe = RegExp(
+    r'\b(?:' + labelAlternation + r')\.?\s*[:#]\s*',
+    caseSensitive: false,
+  );
+
+  final spans = <RawSpan>[];
+  for (final labelMatch in labelRe.allMatches(text)) {
+    final pos = labelMatch.end;
+    final firstWord = _wordAnyCaseRe.matchAsPrefix(text, pos);
+    if (firstWord == null) continue;
+    var end = firstWord.end;
+
+    final gap = _leadingWhitespaceRe.matchAsPrefix(text, end);
+    if (gap != null) {
+      final secondWord = _wordAnyCaseRe.matchAsPrefix(text, gap.end);
+      if (secondWord != null) end = secondWord.end;
+    }
+
+    spans.add(RawSpan(
+      start: pos,
+      end: end,
+      category: category,
+      confidence: SpanConfidence.likely,
+      source: SpanSource.regex,
+      originalText: text.substring(pos, end),
+    ));
+  }
+  return spans;
+}
+
 List<RawSpan> detectNameTitle(String text) {
-  return _titledName(
+  final spans = _titledName(
     text,
     r'Mr|Mrs|Ms|Miss|Dr|Doctor',
     'NAME',
   );
+  spans.addAll(_labelledNameAnyCase(text, r'Patient|Name|Pt|Re', 'NAME'));
+  return spans;
 }
 
 // ---------------------------------------------------------------------------
@@ -554,13 +663,42 @@ bool _wordAllowlisted(String word) => medicalWords.contains(word.toLowerCase());
 bool _phraseAllowlisted(String phrase) =>
     medicalPhrases.contains(phrase.toLowerCase());
 
-bool _isLikelyClinicalRun(String matchText) {
-  if (_phraseAllowlisted(matchText)) return true;
-  // A real person's name essentially never shares a word with core
-  // anatomy/modality/report-structure vocabulary, so any hit is enough to
-  // suppress the run.
-  final words = matchText.split(RegExp(r'\s+'));
-  return words.any(_wordAllowlisted);
+/// Returns the sub-ranges (offsets relative to [runText]) of contiguous
+/// non-allowlisted capitalized words remaining after stripping out any
+/// individually-allowlisted (structural/label/anatomy) token.
+///
+/// The old behaviour suppressed the *entire* run if ANY single word in it
+/// was in [medicalWords] — but [medicalWords] deliberately includes
+/// structural/demographic words (patient, male, female, left, right, date,
+/// referring, signed, none, page, ...) that sit directly next to real
+/// names in real reports ("Patient John Smith", "Referring Michael
+/// Brown"). Whole-run suppression let those names pass through completely
+/// undetected. Per-token stripping fixes that while still suppressing
+/// genuinely clinical runs: an exact-phrase match ("Colles Fracture") is
+/// still fully suppressed up front, and a run where every word is
+/// individually allowlisted ("Left Shoulder") still strips down to nothing
+/// and yields no candidate.
+List<(int, int)> _survivingNameRanges(String runText) {
+  if (_phraseAllowlisted(runText)) return const [];
+
+  final ranges = <(int, int)>[];
+  int? curStart;
+  var curEnd = 0;
+
+  for (final m in _capWordRe.allMatches(runText)) {
+    final word = runText.substring(m.start, m.end);
+    if (_wordAllowlisted(word)) {
+      if (curStart != null) {
+        ranges.add((curStart, curEnd));
+        curStart = null;
+      }
+      continue;
+    }
+    curStart ??= m.start;
+    curEnd = m.end;
+  }
+  if (curStart != null) ranges.add((curStart, curEnd));
+  return ranges;
 }
 
 List<RawSpan> detectNameHeaderZone(String text) {
@@ -576,15 +714,18 @@ List<RawSpan> detectNameHeaderZone(String text) {
 
     for (final m in runRe.allMatches(line)) {
       final matched = line.substring(m.start, m.end);
-      if (_isLikelyClinicalRun(matched)) continue;
-      spans.add(RawSpan(
-        start: pos + m.start,
-        end: pos + m.end,
-        category: 'NAME',
-        confidence: SpanConfidence.candidate,
-        source: SpanSource.headerZone,
-        originalText: matched,
-      ));
+      for (final (rStart, rEnd) in _survivingNameRanges(matched)) {
+        final absStart = pos + m.start + rStart;
+        final absEnd = pos + m.start + rEnd;
+        spans.add(RawSpan(
+          start: absStart,
+          end: absEnd,
+          category: 'NAME',
+          confidence: SpanConfidence.candidate,
+          source: SpanSource.headerZone,
+          originalText: text.substring(absStart, absEnd),
+        ));
+      }
     }
 
     lineCount++;
@@ -597,18 +738,21 @@ List<RawSpan> detectNameHeaderZone(String text) {
 
 List<RawSpan> detectNameBigram(String text) {
   final spans = <RawSpan>[];
-  final re = RegExp('\\b$_capWord\\s+$_capWord\\b');
-  for (final m in re.allMatches(text)) {
+  final bigramRe = RegExp('\\b$_capWord\\s+$_capWord\\b');
+  for (final m in bigramRe.allMatches(text)) {
     final matched = text.substring(m.start, m.end);
-    if (_isLikelyClinicalRun(matched)) continue;
-    spans.add(RawSpan(
-      start: m.start,
-      end: m.end,
-      category: 'NAME',
-      confidence: SpanConfidence.candidate,
-      source: SpanSource.bigram,
-      originalText: matched,
-    ));
+    for (final (rStart, rEnd) in _survivingNameRanges(matched)) {
+      final absStart = m.start + rStart;
+      final absEnd = m.start + rEnd;
+      spans.add(RawSpan(
+        start: absStart,
+        end: absEnd,
+        category: 'NAME',
+        confidence: SpanConfidence.candidate,
+        source: SpanSource.bigram,
+        originalText: text.substring(absStart, absEnd),
+      ));
+    }
   }
   return spans;
 }

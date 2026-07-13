@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/services/analytics_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../firebase_options.dart';
 import '../router.dart';
@@ -27,9 +28,26 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    // These are the app's global error catch-alls — any uncaught exception
+    // (including a DioException whose message embeds a server response, or
+    // a service exception built with report/finding text) would otherwise
+    // ship its full message to Crashlytics. Sanitize at this boundary so
+    // only the exception's runtime type reaches Firebase, never its content.
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(
+        FlutterErrorDetails(
+          exception: Analytics.sanitizeForCrashlytics(details.exception),
+          stack: details.stack,
+          library: details.library,
+        ),
+      );
+    };
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      FirebaseCrashlytics.instance.recordError(
+        Analytics.sanitizeForCrashlytics(error),
+        stack,
+        fatal: true,
+      );
       return true;
     };
   } catch (_) {

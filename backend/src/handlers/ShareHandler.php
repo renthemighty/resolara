@@ -23,13 +23,26 @@ declare(strict_types=1);
  */
 class ShareHandler {
 
-    // ── POST /v1/share ─────────────────────────────────────────────────────
+    // ── POST /v1/share (mobile) ──────────────────────────────────────────────
     public static function create(): never {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') Response::error('Method not allowed.', 405);
 
         Auth::require();
 
-        $body            = json_decode(file_get_contents('php://input'), true) ?? [];
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        Response::json(['code' => self::store($body)]);
+    }
+
+    /**
+     * Core zero-knowledge share storage — shared by the mobile (/v1/share)
+     * and clinic-web (/v1/clinic/share) surfaces. Both callers encrypt the
+     * clinical bundle client-side (see ShareCrypto/share_crypto.dart) before
+     * ever calling this; it validates format/uniqueness only and writes the
+     * single shares/{CODE}.json record format that results() serves back to
+     * patients. It never sees patient_name, findings, or any other plaintext
+     * PHI — callers must not pass any.
+     */
+    public static function store(array $body): string {
         $imageUrl        = trim((string)($body['image_url'] ?? ''));
         $encryptedBundle = trim((string)($body['encrypted_bundle'] ?? ''));
         $schemaVersion   = (int)($body['schema_version'] ?? 1);
@@ -62,7 +75,7 @@ class ShareHandler {
 
         file_put_contents($path, json_encode($payload, JSON_UNESCAPED_UNICODE), LOCK_EX);
 
-        Response::json(['code' => $code]);
+        return $code;
     }
 
     // ── GET /v1/patient/results/{code} ─────────────────────────────────────

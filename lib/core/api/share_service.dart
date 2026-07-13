@@ -27,6 +27,12 @@ class ShareService {
   /// Returns the share code (safe to display/type) and the URL-safe key
   /// (NEVER send this to any server — combine as
   /// `https://resolara.ai/results/{code}#k={key}` for the QR/link only).
+  ///
+  /// Note: the clinic web app (`lib/platforms/web/`) cannot import this
+  /// class — `ApiClient` pulls in `dart:io` via `AppConfig`, which does not
+  /// compile for web. It reimplements this same encrypt/POST/retry flow
+  /// against `ClinicApiClient` in `visit_review_screen.dart`, sharing
+  /// `ShareCrypto` and `ShareBundle` (both pure Dart) instead.
   Future<({String code, String key})> createShare({
     required String imageUrl,
     required Map<String, dynamic> bundle,

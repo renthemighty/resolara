@@ -184,31 +184,21 @@ if (preg_match('#^/v1/clinic/admin/practitioners/([a-f0-9]{24})$#', $path, $m)) 
     if ($method === 'DELETE') ClinicAdminHandler::deactivate($m[1]);
 }
 
-// Share (clinic web app — uses clinic auth, writes same file format as mobile)
+// Share (clinic web app — zero-knowledge, same as mobile: the client
+// encrypts the bundle before it ever reaches here and picks its own code
+// (used as AEAD associated data). This route never sees patient_name or
+// findings in plaintext — see ShareHandler::store() for the shared,
+// single-source-of-truth storage format both surfaces write.
 if ($path === '/v1/clinic/share') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') Response::error('Method not allowed', 405);
     $pdo = Database::get();
     $ctx = ClinicContext::require($pdo);
     $body = json_decode(file_get_contents('php://input') ?: '', true) ?? [];
-    $imageUrl = trim((string)($body['image_url'] ?? ''));
-    $findings = is_array($body['findings'] ?? null) ? $body['findings'] : [];
-    if ($imageUrl === '') Response::error('image_url required', 400);
-    // Generate 6-char code (same format as mobile)
-    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    $code = '';
-    for ($i = 0; $i < 6; $i++) $code .= $chars[random_int(0, strlen($chars) - 1)];
-    $dir = (defined('STORAGE_PATH') ? STORAGE_PATH : '/home/DAUSER/resolara_storage') . '/shares';
-    if (!is_dir($dir)) mkdir($dir, 0750, true);
-    $payload = [
-        'code' => $code,
-        'image_url' => $imageUrl,
-        'patient_name' => trim((string)($body['patient_name'] ?? '')) ?: null,
-        'findings' => $findings,
-        'created_at' => date('c'),
-        'expires_at' => date('c', strtotime('+1 year')),
-    ];
-    file_put_contents("$dir/$code.json", json_encode($payload, JSON_UNESCAPED_UNICODE), LOCK_EX);
+    $code = ShareHandler::store($body);
     AuditService::log($pdo, 'share_created', 'create', $ctx->clinicId, $ctx->userId, 'share', $code, true);
+    // No key here — the server never sees it. This bare link is a fallback
+    // only; the client must display its own #k=-fragment link built from
+    // the key it holds locally.
     Response::json(['code' => $code, 'url' => 'https://resolara.ai/results/' . $code]);
 }
 

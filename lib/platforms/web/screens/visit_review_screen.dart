@@ -4,8 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/crypto/share_crypto.dart';
+import '../../../core/models/share_bundle.dart';
 import '../services/clinic_api_client.dart';
 import '../widgets/web_shell.dart';
 
@@ -35,8 +38,13 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
   String? _vizImageUrl;
   Timer? _pollTimer;
   String? _shareCode;
+  /// URL-safe decryption key — embedded in the QR/link fragment only.
+  /// NEVER logged, NEVER sent anywhere; it exists purely to build [_shareUrl].
+  String? _shareKey;
   String? _shareUrl;
   bool _sharing = false;
+
+  static const _maxShareCodeAttempts = 5;
 
   @override
   void initState() {
@@ -176,41 +184,82 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
     }
   }
 
+  /// Zero-knowledge share, mirroring the mobile app's `ShareService.createShare`
+  /// (see `lib/core/api/share_service.dart`): this device encrypts the whole
+  /// clinical bundle client-side with AES-256-GCM before it ever reaches the
+  /// server (see `ShareCrypto`), and the decryption key travels only in the
+  /// URL fragment, never in the request body. The server (`/v1/clinic/share`
+  /// → `ShareHandler::store()`) stores opaque ciphertext it cannot read.
+  ///
+  /// This can't call `ShareService` directly — that class imports `ApiClient`,
+  /// which pulls in `dart:io` via `AppConfig` and does not compile for web —
+  /// so the encrypt/POST/retry flow is reimplemented here against
+  /// `ClinicApiClient`, sharing the same `ShareCrypto` and `ShareBundle` types.
   Future<void> _shareWithPatient() async {
     if (_vizImageUrl == null || _findings.isEmpty || _sharing) return;
-    setState(() { _sharing = true; _shareCode = null; _shareUrl = null; });
+    setState(() { _sharing = true; _shareCode = null; _shareKey = null; _shareUrl = null; });
 
-    try {
-      final dio = ClinicApiClient.instance.raw;
-      final res = await dio.post('/v1/clinic/share', data: {
-        'image_url': _vizImageUrl!.startsWith('http')
-            ? _vizImageUrl!
-            : 'https://resolara.ai/api/v1/images/$_vizImageUrl',
-        'findings': _findings,
-      });
-      if (!mounted) return;
-      if ((res.statusCode ?? 0) == 200) {
-        final body = res.data as Map<String, dynamic>;
-        setState(() {
-          _sharing = false;
-          _shareCode = body['code'] as String?;
-          _shareUrl = body['url'] as String?;
+    final imageUrl = _vizImageUrl!.startsWith('http')
+        ? _vizImageUrl!
+        : 'https://resolara.ai/api/v1/images/$_vizImageUrl';
+    final bundle = ShareBundle(
+      findings: _findings,
+    ).toJson();
+
+    final dio = ClinicApiClient.instance.raw;
+    DioException? lastError;
+    for (var attempt = 0; attempt < _maxShareCodeAttempts; attempt++) {
+      final code = ShareCrypto.generateCode();
+      final encrypted = await ShareCrypto.encryptBundle(bundle: bundle, code: code);
+      try {
+        final res = await dio.post('/v1/clinic/share', data: {
+          'code':             code,
+          'image_url':        imageUrl,
+          'encrypted_bundle': encrypted.wire,
+          'schema_version':   1,
         });
-      } else {
+        if (!mounted) return;
+        if ((res.statusCode ?? 0) == 200) {
+          final body = res.data as Map<String, dynamic>;
+          final returnedCode = body['code'] as String? ?? code;
+          setState(() {
+            _sharing = false;
+            _shareCode = returnedCode;
+            _shareKey = encrypted.key;
+            // The server never sees the key, so it can't build the #k=
+            // fragment — this device builds the real link itself.
+            _shareUrl = 'https://resolara.ai/results/$returnedCode#k=${encrypted.key}';
+          });
+          return;
+        }
         setState(() => _sharing = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to create share link')),
           );
         }
+        return;
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 409) {
+          lastError = e;
+          continue; // code collision — regenerate and retry
+        }
+        if (mounted) {
+          setState(() => _sharing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Network error creating share')),
+          );
+        }
+        return;
       }
-    } on DioException {
-      if (mounted) {
-        setState(() => _sharing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Network error creating share')),
-        );
-      }
+    }
+    if (mounted) {
+      setState(() => _sharing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(lastError != null
+            ? 'Could not generate a unique share code.'
+            : 'Failed to create share link')),
+      );
     }
   }
 
@@ -331,6 +380,21 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
                               color: AppTheme.warmStone,
                             ),
                           ),
+                          if (_shareUrl != null && _shareKey != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: QrImageView(
+                                data: _shareUrl!,
+                                version: QrVersions.auto,
+                                size: 160,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           SelectableText(
                             _shareUrl ?? 'https://resolara.ai/results/$_shareCode',

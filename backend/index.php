@@ -118,17 +118,11 @@ if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})$#i', $path, $m)) {
     ShareHandler::results($m[1]);
 }
 
-if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/explanation$#i', $path, $m)) {
-    ShareHandler::explanation($m[1]);
-}
-
-if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/exercises$#i', $path, $m)) {
-    ShareHandler::exercises($m[1]);
-}
-
-if (preg_match('#^/v1/patient/results/([A-Z0-9]{6})/medications$#i', $path, $m)) {
-    ShareHandler::medications($m[1]);
-}
+// NOTE: there is intentionally no /v1/patient/results/{code}/explanation,
+// /exercises, or /medications route. Patient-facing content is sealed at
+// share time (encrypted client-side by the practitioner's device) and
+// decrypted on-device — the server must never generate AI content directly
+// for a patient. Do not add a ClaudeService-backed route under /v1/patient/*.
 
 if ($path === '/v1/visualizations') {
     VisualizationsHandler::handle();
@@ -221,6 +215,12 @@ if ($path === '/v1/clinic/share') {
 // Sessions / visits
 if ($path === '/v1/clinic/sessions/upload') {
     ClinicUploadHandler::handle();
+}
+// Browser-OCR'd text submission (scanned PDFs / images) — see
+// ClinicUploadHandler::handleText() docblock. Raw image bytes never reach
+// this server; OCR runs client-side via tesseract.js.
+if ($path === '/v1/clinic/sessions/upload-text') {
+    ClinicUploadHandler::handleText();
 }
 if (preg_match('#^/v1/clinic/sessions/([a-f0-9]{24})$#', $path, $m)) {
     ClinicUploadHandler::status($m[1]);

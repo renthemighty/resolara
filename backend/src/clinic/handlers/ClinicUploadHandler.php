@@ -6,13 +6,22 @@ require_once __DIR__ . '/../services/CryptoService.php';
 require_once __DIR__ . '/../services/AuditService.php';
 
 /**
- * ClinicUploadHandler — receives a clinical report file (PDF or image),
- * stores it envelope-encrypted, runs OCR, extracts findings via AI.
+ * ClinicUploadHandler — receives a clinical report PDF, stores it
+ * envelope-encrypted, extracts embedded text, and runs AI findings
+ * extraction. Also accepts already-OCR'd text submitted by the browser
+ * client for scanned PDFs / images (see handleText()).
+ *
+ * PRIVACY: the raw file bytes handled by handle()/processOcr() below are
+ * ONLY ever a PDF (see ALLOWED_MIMES). This endpoint does NOT perform any
+ * image-based OCR and does NOT send document pixels to Claude or any other
+ * vendor — see extractFromPdf() for why, and see handleText() for how
+ * scanned PDFs and images are handled instead (OCR runs client-side in the
+ * browser via tesseract.js; only recognized text is ever sent here).
  *
  * POST /v1/clinic/sessions/upload
  *   Content-Type: multipart/form-data
  *   Fields:
- *     file       — the uploaded file (PDF/PNG/JPG/TIFF, ≤50 MB)
+ *     file       — the uploaded file (PDF only, ≤50 MB)
  *     patient_id — existing patient ID to associate with this visit
  *
  * Flow:
@@ -20,23 +29,32 @@ require_once __DIR__ . '/../services/AuditService.php';
  *   2. Stream to temp file with UUID name
  *   3. Create clinic_visits row (status=uploaded)
  *   4. Envelope-encrypt original file to STORAGE_PATH/clinic/<clinic_id>/<visit_id>.enc
- *   5. Run extractReportText() — pdftotext fast path, Tesseract fallback
+ *   5. Run extractReportText() — Ghostscript embedded-text fast path only.
+ *      If the PDF has no embedded text layer (i.e. it's a scanned image),
+ *      this throws SCANNED_PDF_NO_TEXT_LAYER — the client is expected to
+ *      ask the practitioner to export/screenshot pages as images and
+ *      resubmit those via handleText() instead.
  *   6. Store extracted text envelope-encrypted in clinic_visits.report_text_encrypted
- *   7. Run AI extraction (Claude) for structured findings
+ *   7. Run AI extraction (Claude) for structured findings — text only, never images
  *   8. Store findings envelope-encrypted
- *   9. Return { visit_id, status, text_length, page_count, findings_count }
+ *   9. Client polls GET /v1/clinic/sessions/<id> for status/findings
  *
  * Long-running — uses fastcgi_finish_request() to flush the visit_id
  * immediately, then processes OCR + AI extraction in background.
+ *
+ * See also: POST /v1/clinic/sessions/upload-text — handleText() below.
  */
 class ClinicUploadHandler
 {
     private const MAX_FILE_SIZE = 52428800; // 50 MB
+    private const MIN_TEXT_LENGTH = 20;
+
+    // Multipart /upload accepts PDFs only. Images must never be uploaded as
+    // raw bytes — they are OCR'd client-side (tesseract.js) and submitted
+    // as text via handleText(). This is the fix for a confirmed PHI leak:
+    // raw page pixels used to be sent to Claude Vision for OCR here.
     private const ALLOWED_MIMES = [
         'application/pdf',
-        'image/png',
-        'image/jpeg',
-        'image/tiff',
     ];
 
     public static function handle(): void
@@ -62,7 +80,7 @@ class ClinicUploadHandler
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mime = $finfo->file($file['tmp_name']);
         if (!in_array($mime, self::ALLOWED_MIMES, true)) {
-            Response::error("Unsupported file type: $mime. Accepted: PDF, PNG, JPEG, TIFF.", 415);
+            Response::error("Unsupported file type: $mime. Accepted: PDF only — for images, OCR them in-browser and submit via /v1/clinic/sessions/upload-text.", 415);
         }
 
         // Validate patient_id
@@ -169,6 +187,92 @@ class ClinicUploadHandler
         Response::json($result);
     }
 
+    /**
+     * Accept already-OCR'd report text from the browser client.
+     *
+     * POST /v1/clinic/sessions/upload-text
+     *   Content-Type: application/json
+     *   Body:
+     *     patient_id          — existing patient ID to associate with this visit
+     *     cleaned_report_text — text recognized client-side (tesseract.js) from a
+     *                           scanned PDF page or an image; raw image bytes are
+     *                           NEVER sent to this endpoint or any other
+     *     source_mime         — informational only, e.g. "image/png" (not trusted,
+     *                           no file is attached)
+     *     original_filename   — informational only, for display purposes
+     *
+     * This is the privacy-preserving replacement for uploading raw scanned
+     * PDFs/images: OCR runs in the practitioner's browser (see
+     * lib/platforms/web/services/tesseract_ocr_service.dart) and only the
+     * recognized text — never document pixels — reaches this server or
+     * Claude.
+     */
+    public static function handleText(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            Response::error('Method not allowed', 405);
+        }
+
+        $pdo = Database::get();
+        $ctx = ClinicContext::require($pdo);
+
+        $body = json_decode(file_get_contents('php://input') ?: '', true) ?? [];
+
+        $patientId = trim((string)($body['patient_id'] ?? ''));
+        if ($patientId === '') {
+            Response::error('patient_id required', 400);
+        }
+        $stmt = $pdo->prepare("SELECT id FROM patients WHERE id = ? AND clinic_id = ? AND deleted_at IS NULL");
+        $stmt->execute([$patientId, $ctx->clinicId]);
+        if (!$stmt->fetch()) {
+            Response::error('Patient not found', 404);
+        }
+
+        $text = trim((string)($body['cleaned_report_text'] ?? ''));
+        if (strlen($text) < self::MIN_TEXT_LENGTH) {
+            Response::error('cleaned_report_text is required and must contain readable OCR text', 400);
+        }
+
+        $sourceMime = trim((string)($body['source_mime'] ?? '')) ?: 'text/plain';
+        $originalFilename = trim((string)($body['original_filename'] ?? '')) ?: 'upload';
+
+        // Create visit row — no raw file is ever stored for this path.
+        $visitId = self::generateId();
+        $retainUntil = date('Y-m-d H:i:s', strtotime('+90 days'));
+
+        $stmt = $pdo->prepare("
+            INSERT INTO clinic_visits
+                (id, clinic_id, patient_id, practitioner_id, upload_mime,
+                 upload_size_bytes, status, retain_until)
+            VALUES (?, ?, ?, ?, ?, ?, 'extracting', ?)
+        ");
+        $stmt->execute([
+            $visitId, $ctx->clinicId, $patientId, $ctx->userId,
+            $sourceMime, strlen($text), $retainUntil,
+        ]);
+
+        $nameEnc = CryptoService::encrypt($originalFilename, $ctx->dek);
+        $pdo->prepare("UPDATE clinic_visits SET upload_filename_encrypted = ? WHERE id = ?")
+            ->execute([$nameEnc, $visitId]);
+
+        AuditService::log(
+            $pdo, 'upload_report', 'create',
+            $ctx->clinicId, $ctx->userId, 'visit', $visitId, true,
+            ['mime' => $sourceMime, 'size' => strlen($text), 'ocr_method' => 'browser_tesseract']
+        );
+
+        Response::json([
+            'visit_id' => $visitId,
+            'status' => 'extracting',
+        ], 202);
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
+
+        self::runFindingsPipeline($pdo, $visitId, $ctx->dek, $text, 'tesseract');
+    }
+
     // ── Background OCR processing ──────────────────────────────────────────
 
     private static function processOcr(
@@ -185,23 +289,7 @@ class ClinicUploadHandler
 
             $ocrResult = self::extractReportText($tmpPath, $mime);
 
-            // Store OCR'd text envelope-encrypted
-            $textEnc = CryptoService::encrypt($ocrResult['text'], $dek);
-            $pdo->prepare("
-                UPDATE clinic_visits
-                   SET report_text_encrypted = ?, ocr_method = ?, status = 'extracting'
-                 WHERE id = ?
-            ")->execute([$textEnc, $ocrResult['method'], $visitId]);
-
-            // AI extraction
-            $findings = self::extractFindings($ocrResult['text']);
-            $findingsEnc = CryptoService::encrypt(json_encode($findings, JSON_UNESCAPED_UNICODE), $dek);
-            $pdo->prepare("
-                UPDATE clinic_visits
-                   SET findings_encrypted = ?, status = 'ready'
-                 WHERE id = ?
-            ")->execute([$findingsEnc, $visitId]);
-
+            self::runFindingsPipeline($pdo, $visitId, $dek, $ocrResult['text'], $ocrResult['method']);
         } catch (Throwable $e) {
             $pdo->prepare("
                 UPDATE clinic_visits SET status = 'failed', error_message = ? WHERE id = ?
@@ -210,31 +298,63 @@ class ClinicUploadHandler
     }
 
     /**
-     * Extract text from a PDF or image.
+     * Store report text envelope-encrypted, run AI findings extraction on
+     * it, and mark the visit ready. Shared by the PDF fast-path
+     * (processOcr, text from Ghostscript) and the browser-OCR path
+     * (handleText, text from tesseract.js). Only ever receives text —
+     * never image bytes.
+     */
+    private static function runFindingsPipeline(
+        PDO $pdo,
+        string $visitId,
+        string $dek,
+        string $text,
+        string $ocrMethod
+    ): void {
+        try {
+            $textEnc = CryptoService::encrypt($text, $dek);
+            $pdo->prepare("
+                UPDATE clinic_visits
+                   SET report_text_encrypted = ?, ocr_method = ?, status = 'extracting'
+                 WHERE id = ?
+            ")->execute([$textEnc, $ocrMethod, $visitId]);
+
+            $findings = self::extractFindings($text);
+            $findingsEnc = CryptoService::encrypt(json_encode($findings, JSON_UNESCAPED_UNICODE), $dek);
+            $pdo->prepare("
+                UPDATE clinic_visits
+                   SET findings_encrypted = ?, status = 'ready'
+                 WHERE id = ?
+            ")->execute([$findingsEnc, $visitId]);
+        } catch (Throwable $e) {
+            $pdo->prepare("
+                UPDATE clinic_visits SET status = 'failed', error_message = ? WHERE id = ?
+            ")->execute([substr($e->getMessage(), 0, 500), $visitId]);
+        }
+    }
+
+    /**
+     * Extract embedded text from a PDF via Ghostscript's txtwrite device
+     * (fast path, ~50ms). This is the ONLY server-side text extraction —
+     * there is no OCR fallback here.
      *
-     * Strategy:
-     *   PDF with embedded text → Ghostscript txtwrite device (fast, ~50ms)
-     *   PDF scanned (no text)  → ImageMagick render → Claude vision per page
-     *   Image (PNG/JPEG/TIFF)  → Claude vision API
+     * If the PDF has no embedded text layer (i.e. it is a scanned image),
+     * this throws SCANNED_PDF_NO_TEXT_LAYER rather than rasterizing pages
+     * and sending them anywhere for OCR. The client is responsible for
+     * detecting this error and asking the practitioner to export/screenshot
+     * the pages as images, which are then OCR'd client-side (tesseract.js)
+     * and submitted as text via handleText()/upload-text. This closes a
+     * confirmed PHI leak: raw page pixels used to be rasterized and sent to
+     * Claude Vision for OCR here, with no BAA in place.
      *
-     * No pdftotext/tesseract binaries needed — Ghostscript + ImageMagick are
-     * available on CageFS; Claude vision handles OCR better than tesseract
-     * for medical documents.
-     *
-     * All processing stays on OVH Canada (ORIGIN_IP_REDACTED) — no cross-border.
-     * Claude API calls go to Anthropic (US) but only receive de-identified
-     * report content, not patient-identifiable data.
+     * All processing stays on OVH Canada (ORIGIN_IP_REDACTED) — no cross-border,
+     * no third-party vendor call of any kind.
      *
      * @return array{text: string, method: string, page_count: int}
      */
     private static function extractReportText(string $filePath, string $mime): array
     {
-        if ($mime === 'application/pdf') {
-            return self::extractFromPdf($filePath);
-        }
-
-        // Image — send to Claude vision
-        return self::extractFromImage($filePath, $mime);
+        return self::extractFromPdf($filePath);
     }
 
     private static function extractFromPdf(string $filePath): array
@@ -246,7 +366,7 @@ class ClinicUploadHandler
         );
         $pageCount = max(1, (int)trim((string)shell_exec($countCmd)));
 
-        // Try embedded text via Ghostscript txtwrite (fast path)
+        // Embedded text via Ghostscript txtwrite (fast path)
         $text = shell_exec(sprintf(
             'gs -sBATCH -dNOPAUSE -dQUIET -sDEVICE=txtwrite -sOutputFile=- %s 2>/dev/null',
             escapeshellarg($filePath)
@@ -255,94 +375,10 @@ class ClinicUploadHandler
             return ['text' => trim($text), 'method' => 'ghostscript', 'page_count' => $pageCount];
         }
 
-        // Scanned PDF — render to images, OCR via Claude vision
-        $maxPages = min($pageCount, 20); // Cap to avoid runaway costs
-        $fullText = '';
-        for ($i = 0; $i < $maxPages; $i++) {
-            $imgPath = sys_get_temp_dir() . '/resolara_ocr_' . uniqid() . '.png';
-            shell_exec(sprintf(
-                'convert -density 300 %s[%d] -depth 8 -strip -background white -alpha off -resize 2000x2000\\> %s 2>/dev/null',
-                escapeshellarg($filePath), $i, escapeshellarg($imgPath)
-            ));
-            if (file_exists($imgPath)) {
-                $pageText = self::ocrViaClaudeVision($imgPath, 'image/png');
-                $fullText .= trim($pageText) . "\n\n";
-                @unlink($imgPath);
-            }
-        }
-        $extracted = trim($fullText);
-        if (strlen($extracted) < 20) {
-            throw new RuntimeException('Could not extract text from scanned PDF. The document may be empty or unreadable.');
-        }
-        return ['text' => $extracted, 'method' => 'claude_vision', 'page_count' => $pageCount];
-    }
-
-    private static function extractFromImage(string $filePath, string $mime): array
-    {
-        // Resize if very large to keep base64 payload reasonable
-        $resizedPath = sys_get_temp_dir() . '/resolara_ocr_' . uniqid() . '.png';
-        shell_exec(sprintf(
-            'convert %s -resize 2000x2000\\> -depth 8 -strip %s 2>/dev/null',
-            escapeshellarg($filePath), escapeshellarg($resizedPath)
-        ));
-        $targetPath = file_exists($resizedPath) ? $resizedPath : $filePath;
-        $targetMime = file_exists($resizedPath) ? 'image/png' : $mime;
-
-        $text = self::ocrViaClaudeVision($targetPath, $targetMime);
-        if ($targetPath !== $filePath) @unlink($targetPath);
-
-        if (strlen(trim($text)) < 20) {
-            throw new RuntimeException('Could not extract text from image. The document may be empty or unreadable.');
-        }
-        return ['text' => trim($text), 'method' => 'claude_vision', 'page_count' => 1];
-    }
-
-    /**
-     * Send an image to Claude vision API for OCR.
-     * Returns the extracted text content.
-     */
-    private static function ocrViaClaudeVision(string $imagePath, string $mime): string
-    {
-        $imageData = file_get_contents($imagePath);
-        if ($imageData === false) return '';
-
-        $b64 = base64_encode($imageData);
-        // Claude vision accepts image/jpeg, image/png, image/gif, image/webp
-        $mediaMime = in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)
-            ? $mime : 'image/png';
-
-        $payload = [
-            'model'      => defined('CLAUDE_MODEL') ? CLAUDE_MODEL : 'claude-sonnet-4-6',
-            'max_tokens' => 4096,
-            'messages'   => [[
-                'role'    => 'user',
-                'content' => [
-                    [
-                        'type' => 'image',
-                        'source' => [
-                            'type' => 'base64',
-                            'media_type' => $mediaMime,
-                            'data' => $b64,
-                        ],
-                    ],
-                    [
-                        'type' => 'text',
-                        'text' => 'Extract ALL text from this clinical/medical document image. '
-                                . 'Return the complete text content exactly as it appears, preserving '
-                                . 'structure, headings, and line breaks. Do not summarize or interpret '
-                                . '— return only the raw text extracted from the image.',
-                    ],
-                ],
-            ]],
-        ];
-
-        try {
-            $response = ClaudeService::callRaw($payload);
-            return $response['content'][0]['text'] ?? '';
-        } catch (Throwable $e) {
-            error_log('Claude vision OCR failed: ' . $e->getMessage());
-            return '';
-        }
+        // No embedded text layer — this is a scanned PDF. Do NOT rasterize
+        // and send pages anywhere for OCR; the client must re-submit these
+        // pages as images via the in-browser OCR path (upload-text).
+        throw new RuntimeException('SCANNED_PDF_NO_TEXT_LAYER');
     }
 
     /**

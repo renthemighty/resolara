@@ -27,6 +27,15 @@
   <title>Resolara Clinic</title>
   <link rel="manifest" href="manifest.json">
 
+  <!--
+    In-browser OCR engine (tesseract.js, CDN-hosted). Loaded here so raw
+    scanned images never have to leave the practitioner's browser tab: OCR
+    runs client-side and only recognized TEXT is sent to the server (see
+    lib/platforms/web/services/tesseract_ocr_service.dart). This mirrors
+    the mobile app's on-device ML Kit OCR for the web surface.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+
   <style>
     /* Window Controls Overlay CSS env vars (Chrome/Edge on Win 11 + macOS 14+) */
     :root {

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../services/clinic_api_client.dart';
+import '../services/tesseract_ocr_service.dart';
 import '../widgets/web_shell.dart';
 
 /// File upload flow — file picker (drag-drop via HTML5 will land separately).
@@ -16,6 +17,21 @@ import '../widgets/web_shell.dart';
 /// web app is strictly file-based (primary source: Jane PDF exports,
 /// downloads from other EMRs, or scanned files on the practitioner's
 /// computer).
+///
+/// PRIVACY: raw image bytes (PNG/JPEG/TIFF) are NEVER uploaded. They are
+/// OCR'd entirely in-browser (tesseract.js, see [TesseractOcrService]) and
+/// only the recognized TEXT is submitted, via
+/// POST /v1/clinic/sessions/upload-text. This mirrors the mobile app's
+/// on-device ML Kit OCR for the web surface.
+///
+/// PDFs are still uploaded to the server (POST /v1/clinic/sessions/upload)
+/// because the server can extract embedded text locally via Ghostscript in
+/// ~50ms with no OCR/vendor call at all — this is the dominant case
+/// (practitioner-exported PDFs from an EMR). If a PDF turns out to be a
+/// scanned image with no text layer, the server does NOT rasterize and OCR
+/// it — it fails with `SCANNED_PDF_NO_TEXT_LAYER`, and this screen asks the
+/// practitioner to export/screenshot the pages as images instead, which
+/// then take the safe in-browser OCR path above.
 class UploadScreen extends ConsumerStatefulWidget {
   const UploadScreen({super.key});
 
@@ -30,6 +46,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
   String? _selectedFileMime;
+
+  /// Status line shown during in-browser OCR / post-upload document checks
+  /// (distinct from raw upload progress, which doesn't apply to those steps).
+  String? _ocrHint;
 
   // Patient picker state
   Map<String, dynamic>? _selectedPatient;
@@ -66,75 +86,181 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
   }
 
+  bool get _isPdf => _selectedFileMime == 'application/pdf';
+
   Future<void> _upload() async {
     if (_selectedFileBytes == null || _selectedFileName == null) return;
+    if (_selectedPatient == null) {
+      setState(() => _error = 'Select a patient before uploading');
+      return;
+    }
+
     setState(() {
       _uploading = true;
       _uploadProgress = 0;
+      _ocrHint = null;
       _error = null;
     });
 
     try {
-      if (_selectedPatient == null) {
-        setState(() => _error = 'Select a patient before uploading');
-        setState(() => _uploading = false);
-        return;
+      if (_isPdf) {
+        await _uploadPdf();
+      } else {
+        await _uploadImageViaBrowserOcr();
       }
-
-      final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(
-          _selectedFileBytes!,
-          filename: _selectedFileName,
-          contentType: DioMediaType.parse(_selectedFileMime ?? 'application/octet-stream'),
-        ),
-        'patient_id': _selectedPatient!['id'] as String,
-      });
-
-      final dio = ClinicApiClient.instance.raw;
-      final response = await dio.post(
-        '/v1/clinic/sessions/upload',
-        data: formData,
-        onSendProgress: (sent, total) {
-          if (total > 0 && mounted) {
-            setState(() => _uploadProgress = sent / total);
-          }
-        },
-      );
-
-      if (!mounted) return;
-
-      final status = response.statusCode ?? 0;
-      if (status == 202) {
-        final visitId = (response.data as Map<String, dynamic>?)?['visit_id'];
-        setState(() {
-          _uploading = false;
-          _selectedFileBytes = null;
-          _selectedFileName = null;
-        });
-        if (mounted && visitId != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Uploaded. Processing OCR... (visit $visitId)'),
-              backgroundColor: AppTheme.emerald,
-            ),
-          );
-        }
-        return;
-      }
-
-      final body = response.data as Map<String, dynamic>? ?? {};
-      setState(() {
-        _uploading = false;
-        _error = (body['error'] as String?) ?? 'Upload failed (HTTP $status)';
-      });
     } on DioException catch (e) {
       if (mounted) {
         setState(() {
           _uploading = false;
+          _ocrHint = null;
           _error = 'Upload failed: ${e.message}';
         });
       }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _ocrHint = null;
+          _error = 'OCR failed: $e';
+        });
+      }
     }
+  }
+
+  /// PDFs go to the server as a file — Ghostscript extracts embedded text
+  /// locally in ~50ms, no OCR/vendor call. If the PDF turns out to have no
+  /// text layer (a scanned document), the server rejects it rather than
+  /// rasterizing and OCR'ing it server-side; this briefly polls for that
+  /// specific failure so the practitioner can be redirected to the
+  /// in-browser image OCR path instead of just seeing a silent stall.
+  Future<void> _uploadPdf() async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        _selectedFileBytes!,
+        filename: _selectedFileName,
+        contentType: DioMediaType.parse(_selectedFileMime ?? 'application/pdf'),
+      ),
+      'patient_id': _selectedPatient!['id'] as String,
+    });
+
+    final dio = ClinicApiClient.instance.raw;
+    final response = await dio.post(
+      '/v1/clinic/sessions/upload',
+      data: formData,
+      onSendProgress: (sent, total) {
+        if (total > 0 && mounted) {
+          setState(() => _uploadProgress = sent / total);
+        }
+      },
+    );
+    if (!mounted) return;
+    await _handleUploadAccepted(response, pdfPath: true);
+  }
+
+  /// Images never leave the browser as raw bytes: OCR runs entirely
+  /// client-side via tesseract.js, and only the recognized text is POSTed.
+  Future<void> _uploadImageViaBrowserOcr() async {
+    setState(() => _ocrHint = 'Reading text from the image in your browser...');
+    final text = await TesseractOcrService.recognizeBytes(
+      _selectedFileBytes!,
+      mime: _selectedFileMime ?? 'image/png',
+    );
+    if (!mounted) return;
+
+    if (text.trim().length < 20) {
+      setState(() {
+        _uploading = false;
+        _ocrHint = null;
+        _error = 'Could not read text from this image. Try a clearer photo or scan.';
+      });
+      return;
+    }
+
+    setState(() => _ocrHint = 'Submitting recognized text...');
+    final dio = ClinicApiClient.instance.raw;
+    final response = await dio.post('/v1/clinic/sessions/upload-text', data: {
+      'patient_id': _selectedPatient!['id'] as String,
+      'cleaned_report_text': text,
+      'source_mime': _selectedFileMime ?? 'image/png',
+      'original_filename': _selectedFileName,
+    });
+    if (!mounted) return;
+    await _handleUploadAccepted(response, pdfPath: false);
+  }
+
+  Future<void> _handleUploadAccepted(Response response, {required bool pdfPath}) async {
+    final status = response.statusCode ?? 0;
+    if (status != 202) {
+      final body = response.data as Map<String, dynamic>? ?? {};
+      setState(() {
+        _uploading = false;
+        _ocrHint = null;
+        _error = (body['error'] as String?) ?? 'Upload failed (HTTP $status)';
+      });
+      return;
+    }
+
+    final visitId = (response.data as Map<String, dynamic>?)?['visit_id'] as String?;
+
+    if (pdfPath && visitId != null) {
+      setState(() => _ocrHint = 'Checking document...');
+      final isScannedPdf = await _pollForScannedPdfFailure(visitId);
+      if (!mounted) return;
+      if (isScannedPdf) {
+        setState(() {
+          _uploading = false;
+          _ocrHint = null;
+          _error = 'This PDF has no selectable text — it looks like a scanned '
+              'document. Export or take screenshots of the pages as images '
+              '(PNG/JPG) and upload those instead; they are OCR\'d securely '
+              'in your browser and the images themselves are never uploaded.';
+        });
+        return;
+      }
+    }
+
+    setState(() {
+      _uploading = false;
+      _ocrHint = null;
+      _selectedFileBytes = null;
+      _selectedFileName = null;
+    });
+    if (mounted && visitId != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Uploaded. Processing... (visit $visitId)'),
+          backgroundColor: AppTheme.emerald,
+        ),
+      );
+    }
+  }
+
+  /// Briefly polls visit status right after a PDF upload to catch a
+  /// SCANNED_PDF_NO_TEXT_LAYER failure quickly. Times out silently after a
+  /// few seconds — the server keeps processing in the background regardless,
+  /// this is purely to give fast feedback for the common "wrong file type"
+  /// mistake without turning this screen into a full status poller.
+  Future<bool> _pollForScannedPdfFailure(String visitId) async {
+    final dio = ClinicApiClient.instance.raw;
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      try {
+        final res = await dio.get('/v1/clinic/sessions/$visitId');
+        if ((res.statusCode ?? 0) != 200) continue;
+        final body = res.data as Map<String, dynamic>? ?? {};
+        final visitStatus = body['status'] as String?;
+        if (visitStatus == 'failed') {
+          return (body['error'] as String?) == 'SCANNED_PDF_NO_TEXT_LAYER';
+        }
+        if (visitStatus != null && visitStatus != 'uploaded' && visitStatus != 'ocring') {
+          // Moved past the Ghostscript stage without failing.
+          return false;
+        }
+      } catch (_) {
+        // Transient poll error — keep trying until the loop ends.
+      }
+    }
+    return false;
   }
 
   void _clearSelection() {
@@ -144,6 +270,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       _selectedFileMime = null;
       _selectedPatient = null;
       _showPatientPicker = false;
+      _ocrHint = null;
       _error = null;
     });
   }
@@ -298,7 +425,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: _uploadProgress,
+                              value: _ocrHint != null ? null : _uploadProgress,
                               backgroundColor: const Color(0xFF1D3A31),
                               valueColor: const AlwaysStoppedAnimation(AppTheme.gold),
                               minHeight: 6,
@@ -306,7 +433,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${(_uploadProgress * 100).toInt()}% uploaded',
+                            _ocrHint ?? '${(_uploadProgress * 100).toInt()}% uploaded',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontFamily: AppTheme.fontFamily,

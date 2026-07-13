@@ -66,12 +66,35 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
   /// Nothing can be sent until every span has been actively resolved and,
   /// in the zero-findings case, the practitioner has attested to reading
   /// the full text.
-  bool get _canSend {
-    final noPending = widget.analysis.spans
-        .every((s) => s.decision != SpanDecision.pending);
-    if (!noPending) return false;
-    if (_isZeroFindings && !_attested) return false;
-    return true;
+  bool get _canSend => _blockReasons.isEmpty;
+
+  /// Reasons Send is currently blocked, surfaced via SnackBar on tap so a
+  /// disabled button never fails silently. See redaction_review_screen.dart
+  /// for the same pattern on the full OCR review gate.
+  List<String> get _blockReasons {
+    final reasons = <String>[];
+    final pendingCount = widget.analysis.spans
+        .where((s) => s.decision == SpanDecision.pending)
+        .length;
+    if (pendingCount > 0) {
+      reasons.add('Resolve the $pendingCount item${pendingCount == 1 ? '' : 's'} '
+          'above');
+    }
+    if (_isZeroFindings && !_attested) {
+      reasons.add('Confirm the attestation checkbox');
+    }
+    return reasons;
+  }
+
+  void _handleSendTap() {
+    final reasons = _blockReasons;
+    if (reasons.isNotEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(reasons.join(' · '))));
+      return;
+    }
+    Navigator.of(context).pop(widget.analysis);
   }
 
   void _toggle(RedactionSpan span) {
@@ -172,7 +195,16 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: _canSend ? () => Navigator.of(context).pop(widget.analysis) : null,
+                // Stays tappable even when blocked — see _handleSendTap:
+                // a disabled button here would swallow the tap with no
+                // explanation of which precondition is unmet.
+                onPressed: _handleSendTap,
+                style: _canSend
+                    ? null
+                    : ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.sage.withAlpha(90),
+                        foregroundColor: AppTheme.textSecondary,
+                      ),
                 icon: const Icon(Icons.send_outlined, size: 18),
                 label: Text(_isZeroFindings ? 'Send unredacted text' : 'Send redacted text'),
               ),

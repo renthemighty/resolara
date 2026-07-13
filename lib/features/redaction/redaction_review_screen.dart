@@ -65,17 +65,38 @@ class _RedactionReviewScreenState extends State<RedactionReviewScreen> {
   /// All submit preconditions in one place, recomputed on every relevant
   /// state change. See class doc — nothing ships to the server unless every
   /// one of these holds.
-  bool get _canSubmit {
-    final noPending = widget.analysis.spans
-        .every((s) => s.decision != SpanDecision.pending);
-    if (!noPending) return false;
-    if (!_hasScrolledToEnd) return false;
-    if (_isZeroFindings && !_attested) return false;
+  bool get _canSubmit => _blockReasons.isEmpty;
+
+  /// Human-readable reasons Confirm & Send is currently blocked, in the
+  /// order the practitioner should resolve them. Empty when ready to send.
+  /// This is the single source of truth surfaced both inline (near the
+  /// button) and in the tap-to-explain SnackBar — a disabled button with no
+  /// visible reason is exactly the gap this list exists to close.
+  List<String> get _blockReasons {
+    final reasons = <String>[];
+    final pendingCount = widget.analysis.spans
+        .where((s) => s.decision == SpanDecision.pending)
+        .length;
+    if (pendingCount > 0) {
+      reasons.add('Resolve the $pendingCount highlighted '
+          'item${pendingCount == 1 ? '' : 's'} above');
+    }
+    if (!_hasScrolledToEnd) {
+      reasons.add('Scroll to the end of the report to continue');
+    }
+    if (_isZeroFindings && !_attested) {
+      reasons.add('Confirm the attestation checkbox');
+    }
     // buildRedactedText() returns originalText unchanged when there are no
     // accepted spans, so this single check also covers the zero-findings
-    // unredacted-send case — no separate branch needed.
-    if (widget.analysis.buildRedactedText().trim().isEmpty) return false;
-    return true;
+    // unredacted-send case — no separate branch needed. Only surfaced when
+    // nothing else already explains the block, since this case is rare and
+    // downstream of the ones above.
+    if (reasons.isEmpty &&
+        widget.analysis.buildRedactedText().trim().isEmpty) {
+      reasons.add('There is no text left to send');
+    }
+    return reasons;
   }
 
   Future<void> _openDeterministicSheet(RedactionSpan span) async {
@@ -152,7 +173,13 @@ class _RedactionReviewScreenState extends State<RedactionReviewScreen> {
   }
 
   void _submit() {
-    if (!_canSubmit) return;
+    final reasons = _blockReasons;
+    if (reasons.isNotEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(reasons.join(' · '))));
+      return;
+    }
     final spans = widget.analysis.spans;
     final approval = RedactionApproval._internal(
       cleanedText: widget.analysis.buildRedactedText(),
@@ -255,6 +282,7 @@ class _RedactionReviewScreenState extends State<RedactionReviewScreen> {
             ),
             _ReviewBottomBar(
               canSubmit: _canSubmit,
+              blockReasons: _blockReasons,
               isZeroFindings: _isZeroFindings,
               onCancel: _cancel,
               onSubmit: _submit,
@@ -384,12 +412,14 @@ class _AttestationCheckbox extends StatelessWidget {
 
 class _ReviewBottomBar extends StatelessWidget {
   final bool canSubmit;
+  final List<String> blockReasons;
   final bool isZeroFindings;
   final VoidCallback onCancel;
   final VoidCallback onSubmit;
 
   const _ReviewBottomBar({
     required this.canSubmit,
+    required this.blockReasons,
     required this.isZeroFindings,
     required this.onCancel,
     required this.onSubmit,
@@ -406,8 +436,39 @@ class _ReviewBottomBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (!canSubmit) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 15, color: AppTheme.gold),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    blockReasons.join(' · '),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.gold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+          // The button stays tappable even when a precondition is unmet —
+          // a disabled ElevatedButton swallows taps silently, which is
+          // exactly how "why can't I send this" goes unanswered. Tapping
+          // while blocked surfaces the same reasons above via SnackBar
+          // instead of doing nothing.
           ElevatedButton(
-            onPressed: canSubmit ? onSubmit : null,
+            onPressed: onSubmit,
+            style: canSubmit
+                ? null
+                : ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.sage.withAlpha(90),
+                    foregroundColor: AppTheme.textSecondary,
+                  ),
             child: Text(isZeroFindings ? 'Send Unredacted Text' : 'Confirm & Send'),
           ),
           const SizedBox(height: 10),

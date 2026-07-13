@@ -393,7 +393,11 @@ class _ConfirmBar extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ElevatedButton(
-            onPressed: findingCount > 0 ? onConfirm : null,
+            // Always tappable: onConfirm (_confirm in ExtractScreen) already
+            // shows a SnackBar explaining "No findings to visualize" when
+            // findingCount is 0. Gating onPressed on findingCount here made
+            // that message unreachable — the button just went dead instead.
+            onPressed: onConfirm,
             child: const Text('Confirm & Generate Visualization'),
           ),
         ],

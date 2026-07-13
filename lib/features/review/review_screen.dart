@@ -1945,6 +1945,19 @@ class _ActionBar extends StatelessWidget {
     required this.onApprove,
   });
 
+  // Share/Approve are only blocked on one condition (image not ready yet),
+  // and the Image Visualization accordion above already shows why
+  // (generating spinner or a failure + retry). Still worth a nudge on tap
+  // rather than a silently inert button, since the accordion can be
+  // scrolled out of view or collapsed.
+  void _explainNotReady(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Waiting on the image visualization — see the top section.'),
+      ));
+  }
+
   @override
   Widget build(BuildContext context) {
     const c = AppTheme.gold;
@@ -1970,7 +1983,7 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: onShare,
+              onPressed: onShare ?? () => _explainNotReady(context),
               icon: Icon(Icons.share_outlined, size: 16,
                   color: onShare != null ? c : AppTheme.textSecondary),
               label: Text('Share',
@@ -1987,7 +2000,7 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: onApprove,
+              onPressed: onApprove ?? () => _explainNotReady(context),
               icon: Icon(Icons.check_circle_outline, size: 16,
                   color: onApprove != null ? c : AppTheme.textSecondary),
               label: Text('Approve',

@@ -16,10 +16,6 @@ class GenerationService {
   final _dio = ApiClient.instance.dio;
 
   /// Submits confirmed findings to the backend for visualization.
-  ///
-  /// [patientName] is accepted for call-site compatibility but is deliberately
-  /// NOT transmitted: it is a direct HIPAA identifier, the image model cannot
-  /// use it, and the name is stamped on-device after generation instead.
   Future<String> submitGeneration(List<Finding> findings, {String patientName = ''}) async {
     final payload = {
       'findings': findings
@@ -29,6 +25,7 @@ class GenerationService {
                 'finding': f.text,
               })
           .toList(),
+      if (patientName.isNotEmpty) 'patient_name': patientName,
       'device_meta': DeviceInfoService.collect(),
     };
 
@@ -47,12 +44,10 @@ class GenerationService {
   }
 
   /// Submits a free-form text/voice description directly for visualization.
-  ///
-  /// [patientName] is accepted for call-site compatibility but is deliberately
-  /// NOT transmitted — see [submitGeneration].
   Future<String> submitDirectPrompt(String prompt, {String patientName = ''}) async {
     final payload = {
       'prompt': prompt,
+      if (patientName.isNotEmpty) 'patient_name': patientName,
       'device_meta': DeviceInfoService.collect(),
     };
 

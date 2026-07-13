@@ -34,17 +34,10 @@ class OpenAIService {
         return self::generate($prompt);
     }
 
-    /**
-     * The patient name is deliberately NOT included in the prompt.
-     * It is a direct HIPAA identifier and must never be transmitted to a
-     * third-party AI vendor. It also serves no generative purpose: the name
-     * is stamped onto the image on-device (image_stamp.dart) after generation.
-     * $patientName is retained in the signature for call-site compatibility only.
-     */
     private static function buildPrompt(string $text, string $patientName): string {
-        unset($patientName);
         $parts = [];
         if ($text !== '') $parts[] = $text;
+        if ($patientName !== '') $parts[] = 'Patient: ' . $patientName;
         $parts[] = self::PROMPT_SUFFIX;
         return implode("\n", $parts);
     }

@@ -52,6 +52,7 @@ class ConfigHandler {
             'support_email'      => 'support@resolara.ai',
             'app_message'        => null,
             'maintenance_mode'   => false,
+            'backend_version'    => APP_VERSION,
         ];
     }
 }

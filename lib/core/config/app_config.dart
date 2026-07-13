@@ -5,7 +5,8 @@ class AppConfig {
   AppConfig._();
 
   static const String appName = 'Resolara';
-  static const String appVersion = '1.4.0';
+  // Kept in sync with pubspec.yaml manually — see Primer.md version bump rule.
+  static const String appVersion = '1.4.1';
 
   // Compile-time override: flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8099
   static const String _compiledApiBaseUrl = String.fromEnvironment(

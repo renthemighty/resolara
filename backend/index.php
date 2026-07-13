@@ -12,6 +12,8 @@ if (!file_exists($configFile)) {
 }
 require_once $configFile;
 
+define('APP_VERSION', '1.4.1');
+
 require_once __DIR__ . '/src/Database.php';
 require_once __DIR__ . '/src/Response.php';
 require_once __DIR__ . '/src/Auth.php';

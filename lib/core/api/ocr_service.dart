@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../features/redaction/redaction_approval.dart';
 import '../api/api_client.dart';
 import '../config/app_config.dart';
 import '../models/ocr_job.dart';
@@ -16,17 +17,22 @@ class OcrService {
 
   /// Submits cleaned report text to the server and returns a job ID.
   /// Raw images and PDFs are never uploaded — OCR and redaction run on-device.
+  ///
+  /// Requires a [RedactionApproval], which can only be constructed by
+  /// [RedactionReviewScreen] after a practitioner has resolved every
+  /// detected identifier span — see redaction_approval.dart. This makes it
+  /// a compile error to submit cleaned text that hasn't been through the
+  /// human review gate.
   Future<String> submitJob({
-    required String cleanedReportText,
-    required String redactionSummary,
+    required RedactionApproval approval,
     required String documentType,
     required int pageCount,
   }) async {
     final response = await _dio.post(
       '/v1/jobs',
       data: {
-        'cleaned_report_text': cleanedReportText,
-        'redaction_summary': redactionSummary,
+        'cleaned_report_text': approval.cleanedText,
+        'redaction_summary': approval.summary,
         'document_type': documentType,
         'page_count': pageCount,
         'client_timestamp': DateTime.now().toIso8601String(),

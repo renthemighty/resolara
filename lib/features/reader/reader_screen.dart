@@ -6,8 +6,9 @@ import '../../core/models/captured_report.dart';
 import '../../core/models/extraction_result.dart';
 import '../../core/models/ocr_job.dart';
 import '../../core/services/local_ocr_service.dart';
-import '../../core/services/redaction_service.dart';
+import '../../core/services/redaction/redaction.dart';
 import '../extract/extract_screen.dart';
+import '../redaction/redaction_approval.dart';
 
 class ReaderScreen extends StatefulWidget {
   final CapturedReport? report;
@@ -63,8 +64,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
     if (cleanedRaw.trim().isEmpty) return null;
 
-    // Phase 2: On-device redaction
-    final redaction = RedactionService.redact(cleanedRaw);
+    // Phase 2: On-device redaction analysis
+    final analysis = RedactionEngine.analyze(cleanedRaw);
+
+    if (!mounted || runId != _runCount) return null;
+
+    // Phase 2b: Practitioner review gate — fires on EVERY submission, no
+    // skip affordance. This is the de-identification mechanism of record;
+    // submitJob() cannot be called without the RedactionApproval this
+    // screen produces.
+    final approval = await Navigator.of(context).push<RedactionApproval>(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: '/redaction-review'),
+        builder: (_) => RedactionReviewScreen(analysis: analysis),
+      ),
+    );
+
+    if (!mounted || runId != _runCount) return null;
+    if (approval == null) return null; // practitioner cancelled/retook — treat like a failed file
 
     // Phase 3: Submit cleaned text
     if (mounted && runId == _runCount) {
@@ -72,8 +89,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     }
 
     final jobId = await _ocr.submitJob(
-      cleanedReportText: redaction.redactedText,
-      redactionSummary: redaction.summaryString,
+      approval: approval,
       documentType: report.isPdf ? 'pdf' : 'image',
       pageCount: 1,
     );

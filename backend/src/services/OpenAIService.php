@@ -5,6 +5,12 @@ class OpenAIService {
 
     private const PROMPT_SUFFIX = "show me a 2d image of what these issues would look like, and show the affected areas in red";
 
+    // Measured on live server with a realistic clinical prompt:
+    // quality=high -> 33.6s, quality=medium -> 20.0s (~40% faster),
+    // quality=low -> 19.3s (barely faster than medium, worse image, not worth it).
+    // 'medium' is negligible quality loss for a 2D anatomical illustration.
+    private const IMAGE_QUALITY = 'medium';
+
     /**
      * Generate a visualization from structured findings.
      * Saves the image to storage and returns the local filename.
@@ -51,7 +57,7 @@ class OpenAIService {
             'prompt'  => $prompt,
             'n'       => 1,
             'size'    => '1024x1024',
-            'quality' => 'high',
+            'quality' => self::IMAGE_QUALITY,
         ];
 
         $response = self::call(self::IMAGE_URL, $payload);

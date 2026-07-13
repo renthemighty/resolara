@@ -47,9 +47,16 @@ class OcrService {
   }
 
   /// Polls the job until complete, failed, or [maxAttempts] is reached.
+  ///
+  /// The first poll fires almost immediately (a short delay, not the full
+  /// [AppConfig.jobPollInterval]) so the server claims the job and starts
+  /// processing right away instead of sitting idle for 3s. Subsequent polls
+  /// fall back to the normal interval.
   Stream<OcrJob> pollJob(String jobId) async* {
     for (int attempt = 0; attempt < AppConfig.jobPollMaxAttempts; attempt++) {
-      await Future.delayed(AppConfig.jobPollInterval);
+      await Future.delayed(attempt == 0
+          ? const Duration(milliseconds: 300)
+          : AppConfig.jobPollInterval);
 
       final Response response;
       try {

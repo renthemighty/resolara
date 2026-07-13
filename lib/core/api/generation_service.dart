@@ -74,9 +74,16 @@ class GenerationService {
   }
 
   /// Polls until the visualization is ready, failed, or times out.
+  ///
+  /// The first poll fires almost immediately (a short delay, not the full
+  /// [AppConfig.jobPollInterval]) so the server claims the job and starts
+  /// calling OpenAI right away instead of sitting idle for 3s. Subsequent
+  /// polls fall back to the normal interval.
   Stream<GenerationJob> pollJob(String jobId) async* {
     for (int attempt = 0; attempt < AppConfig.jobPollMaxAttempts; attempt++) {
-      await Future.delayed(AppConfig.jobPollInterval);
+      await Future.delayed(attempt == 0
+          ? const Duration(milliseconds: 300)
+          : AppConfig.jobPollInterval);
 
       final Response response;
       try {

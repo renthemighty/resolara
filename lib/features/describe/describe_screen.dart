@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../app/theme/app_theme.dart';
+import '../../core/services/redaction/redaction.dart';
 import '../generate/generate_screen.dart';
+import 'describe_redaction_sheet.dart';
 
 class DescribeScreen extends StatefulWidget {
   const DescribeScreen({super.key});
@@ -71,7 +73,7 @@ class _DescribeScreenState extends State<DescribeScreen> {
     );
   }
 
-  void _generate() {
+  Future<void> _generate() async {
     final prompt = _promptController.text.trim();
     if (prompt.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,10 +81,23 @@ class _DescribeScreenState extends State<DescribeScreen> {
       );
       return;
     }
+
+    // On-device de-identification gate — the practitioner typed/dictated
+    // this text, so it has never been screened. Mirrors the OCR path's
+    // "human is the de-identification mechanism of record" principle, but
+    // as a lightweight in-screen confirmation rather than a full review
+    // screen, since this text is short and self-authored.
+    final analysis = RedactionEngine.analyze(prompt);
+    final approved = await DescribeRedactionSheet.show(context, analysis);
+    if (approved == null || !mounted) return; // practitioner chose to go back and edit
+
+    final redactedPrompt = approved.buildRedactedText();
+
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GenerateScreen(
-          directPrompt: prompt,
+          directPrompt: redactedPrompt,
           patientName: _labelController.text.trim(),
         ),
       ),

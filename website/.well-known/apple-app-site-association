@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "F6BZW3FYX8.ai.resolara.app",
+        "paths": ["/results/*"]
+      }
+    ]
+  }
+}

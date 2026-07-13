@@ -16,6 +16,12 @@ class GenerationService {
   final _dio = ApiClient.instance.dio;
 
   /// Submits confirmed findings to the backend for visualization.
+  ///
+  /// [patientName] is accepted for call-site compatibility (it is used
+  /// on-device to stamp the approved image) but is deliberately NOT sent
+  /// to the server: the generation endpoint forwards findings to a
+  /// third-party AI vendor with no BAA, and a patient name has no use in
+  /// an image-generation prompt. Do not add it back to this payload.
   Future<String> submitGeneration(List<Finding> findings, {String patientName = ''}) async {
     final payload = {
       'findings': findings
@@ -25,7 +31,6 @@ class GenerationService {
                 'finding': f.text,
               })
           .toList(),
-      if (patientName.isNotEmpty) 'patient_name': patientName,
       'device_meta': DeviceInfoService.collect(),
     };
 
@@ -44,10 +49,13 @@ class GenerationService {
   }
 
   /// Submits a free-form text/voice description directly for visualization.
+  ///
+  /// [patientName] is accepted for call-site compatibility (it is used
+  /// on-device to stamp the approved image) but is deliberately NOT sent
+  /// to the server — see the note on [submitGeneration] above.
   Future<String> submitDirectPrompt(String prompt, {String patientName = ''}) async {
     final payload = {
       'prompt': prompt,
-      if (patientName.isNotEmpty) 'patient_name': patientName,
       'device_meta': DeviceInfoService.collect(),
     };
 

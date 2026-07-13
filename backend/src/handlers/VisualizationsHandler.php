@@ -51,7 +51,10 @@ class VisualizationsHandler {
         $device = Auth::require();
         $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $patientName  = substr(strip_tags((string)($body['patient_name'] ?? '')), 0, 100);
+        // Patient name is intentionally never read from the request body here.
+        // It must not reach OpenAIService / the generation prompt — it's a
+        // direct identifier with no BAA coverage, and the on-device stamping
+        // in image_stamp.dart already applies it locally after generation.
         $directPrompt = trim((string)($body['prompt'] ?? ''));
 
         if ($directPrompt !== '') {
@@ -59,7 +62,7 @@ class VisualizationsHandler {
                 Response::error('Prompt too long. Maximum is 2000 characters.');
             }
             self::enqueue(
-                ['__type' => 'prompt', '__prompt' => $directPrompt, '__patient' => $patientName],
+                ['__type' => 'prompt', '__prompt' => $directPrompt],
                 $device['token']
             );
         }
@@ -78,7 +81,7 @@ class VisualizationsHandler {
         ], $findings);
 
         self::enqueue(
-            ['__type' => 'findings', '__patient' => $patientName, 'findings' => $cleanFindings],
+            ['__type' => 'findings', 'findings' => $cleanFindings],
             $device['token']
         );
     }
@@ -113,13 +116,12 @@ class VisualizationsHandler {
         $vizId   = $viz['id'];
         $payload = $viz['findings_json'] ? json_decode($viz['findings_json'], true) : [];
         $type    = $payload['__type'] ?? 'findings';
-        $patient = $payload['__patient'] ?? '';
 
         try {
             if ($type === 'prompt') {
-                $filename = OpenAIService::generateFromPrompt($payload['__prompt'] ?? '', $patient);
+                $filename = OpenAIService::generateFromPrompt($payload['__prompt'] ?? '');
             } else {
-                $filename = OpenAIService::generateVisualization($payload['findings'] ?? [], $patient);
+                $filename = OpenAIService::generateVisualization($payload['findings'] ?? []);
             }
             $db->prepare(
                 'UPDATE visualizations SET status = ?, image_filename = ?, updated_at = NOW() WHERE id = ?'

@@ -9,7 +9,7 @@ class OpenAIService {
      * Generate a visualization from structured findings.
      * Saves the image to storage and returns the local filename.
      */
-    public static function generateVisualization(array $findings, string $patientName = ''): string {
+    public static function generateVisualization(array $findings): string {
         $lines = [];
         foreach ($findings as $f) {
             $region  = trim($f['body_region'] ?? '');
@@ -21,7 +21,7 @@ class OpenAIService {
             }
         }
         $text = implode("\n", $lines);
-        $prompt = self::buildPrompt($text, $patientName);
+        $prompt = self::buildPrompt($text);
         return self::generate($prompt);
     }
 
@@ -29,15 +29,18 @@ class OpenAIService {
      * Generate a visualization from a free-form text description.
      * Used by the "Describe Instead" flow.
      */
-    public static function generateFromPrompt(string $directPrompt, string $patientName = ''): string {
-        $prompt = self::buildPrompt(trim($directPrompt), $patientName);
+    public static function generateFromPrompt(string $directPrompt): string {
+        $prompt = self::buildPrompt(trim($directPrompt));
         return self::generate($prompt);
     }
 
-    private static function buildPrompt(string $text, string $patientName): string {
+    // No patient name parameter here by design: an image model has no use
+    // for a name, and including it would send a direct identifier alongside
+    // clinical findings to a third-party vendor with no BAA. The name is
+    // stamped onto the approved image on-device (image_stamp.dart) instead.
+    private static function buildPrompt(string $text): string {
         $parts = [];
         if ($text !== '') $parts[] = $text;
-        if ($patientName !== '') $parts[] = 'Patient: ' . $patientName;
         $parts[] = self::PROMPT_SUFFIX;
         return implode("\n", $parts);
     }

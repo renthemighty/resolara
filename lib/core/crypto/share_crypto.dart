@@ -54,6 +54,32 @@ class ShareCrypto {
     return base64Url.decode(padded);
   }
 
+  /// Generates a fresh high-entropy opaque token gating access to a share's
+  /// visualization image (see ShareHandler/ImagesHandler H5 fix). 32 random
+  /// bytes from a CSPRNG, URL-safe base64 — same encoding as the AEAD key.
+  /// The server only ever stores this token's SHA-256 hash, never the token
+  /// itself.
+  static String generateImageAccessToken() {
+    final rnd = Random.secure();
+    final bytes = Uint8List(32);
+    for (var i = 0; i < bytes.length; i++) {
+      bytes[i] = rnd.nextInt(256);
+    }
+    return encodeKeyForUrl(bytes);
+  }
+
+  /// Extracts the bare filename (no path, no query string) from a generated
+  /// image URL, e.g. `https://.../v1/images/abc123?x=1` -> `abc123`. Used to
+  /// derive `image_filename` for share creation. Returns null if [imageUrl]
+  /// has no usable path segment.
+  static String? extractImageFilename(String imageUrl) {
+    final uri = Uri.tryParse(imageUrl);
+    final segments = (uri?.pathSegments ?? imageUrl.split('/'))
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return segments.isEmpty ? null : segments.last;
+  }
+
   /// Encrypts [bundle] (a JSON-encodable map) for share [code].
   /// Returns the wire-format ciphertext and the URL-safe key — the caller
   /// must send [wire] to the server and keep [key] client-side only

@@ -37,16 +37,32 @@ class ShareService {
     required String imageUrl,
     required Map<String, dynamic> bundle,
   }) async {
+    // H5 fix: the image is zero-knowledge too now. This device generates a
+    // high-entropy image_access_token and places it, plus the bare
+    // image_filename, INSIDE the plaintext bundle it's about to encrypt —
+    // so only someone who can decrypt the bundle (holds the URL-fragment
+    // key) ever learns them. The server only ever sees/stores a hash of
+    // the token (see ShareHandler::store()).
+    final imageFilename = ShareCrypto.extractImageFilename(imageUrl);
+    final imageAccessToken =
+        imageFilename != null ? ShareCrypto.generateImageAccessToken() : null;
+    final fullBundle = <String, dynamic>{
+      ...bundle,
+      if (imageFilename != null) 'image_filename': imageFilename,
+      if (imageAccessToken != null) 'image_access_token': imageAccessToken,
+    };
+
     DioException? lastError;
     for (var attempt = 0; attempt < _maxCodeAttempts; attempt++) {
       final code = ShareCrypto.generateCode();
-      final encrypted = await ShareCrypto.encryptBundle(bundle: bundle, code: code);
+      final encrypted = await ShareCrypto.encryptBundle(bundle: fullBundle, code: code);
       try {
         final res = await _dio.post('/v1/share', data: {
           'code':             code,
-          'image_url':        imageUrl,
           'encrypted_bundle': encrypted.wire,
           'schema_version':   1,
+          if (imageFilename != null) 'image_filename': imageFilename,
+          if (imageAccessToken != null) 'image_access_token': imageAccessToken,
         });
         final returnedCode = res.data['code'] as String? ?? code;
         return (code: returnedCode, key: encrypted.key);

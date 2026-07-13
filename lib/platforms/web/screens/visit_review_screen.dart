@@ -202,8 +202,19 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
     final imageUrl = _vizImageUrl!.startsWith('http')
         ? _vizImageUrl!
         : 'https://resolara.ai/api/v1/images/$_vizImageUrl';
+
+    // H5 fix: mirrors ShareService.createShare on mobile — generate a
+    // high-entropy image_access_token, derive the bare image_filename, and
+    // place BOTH inside the plaintext bundle before it's encrypted, plus
+    // send them as top-level POST fields. The server only ever stores a
+    // hash of the token.
+    final imageFilename = ShareCrypto.extractImageFilename(imageUrl);
+    final imageAccessToken =
+        imageFilename != null ? ShareCrypto.generateImageAccessToken() : null;
     final bundle = ShareBundle(
       findings: _findings,
+      imageFilename: imageFilename,
+      imageAccessToken: imageAccessToken,
     ).toJson();
 
     final dio = ClinicApiClient.instance.raw;
@@ -214,9 +225,10 @@ class _VisitReviewScreenState extends ConsumerState<VisitReviewScreen> {
       try {
         final res = await dio.post('/v1/clinic/share', data: {
           'code':             code,
-          'image_url':        imageUrl,
           'encrypted_bundle': encrypted.wire,
           'schema_version':   1,
+          if (imageFilename != null) 'image_filename': imageFilename,
+          if (imageAccessToken != null) 'image_access_token': imageAccessToken,
         });
         if (!mounted) return;
         if ((res.statusCode ?? 0) == 200) {

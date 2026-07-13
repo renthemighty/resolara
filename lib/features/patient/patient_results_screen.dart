@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
+import '../../core/config/app_config.dart';
 import '../../core/api/share_service.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/models/explanation.dart';
@@ -130,7 +131,17 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
         _exercisesExpanded   = bundle?.exercises.isNotEmpty ?? false;
         _medicationsExpanded = bundle?.medications.isNotEmpty ?? false;
       });
-      if (result.imageUrl.isNotEmpty) _loadImage(result.imageUrl);
+      // H5 fix: image_filename/image_access_token now live INSIDE the
+      // encrypted bundle, never in the unauthenticated API response —
+      // only a client that successfully decrypted (i.e. holds the
+      // URL-fragment key) can build this URL. No key/decrypt failure ->
+      // no image, by design.
+      final imgFilename = bundle?.imageFilename;
+      final imgToken = bundle?.imageAccessToken;
+      if (imgFilename != null && imgFilename.isNotEmpty &&
+          imgToken != null && imgToken.isNotEmpty) {
+        _loadImage('${AppConfig.apiBaseUrl}/v1/images/$imgFilename?t=$imgToken');
+      }
     } on ShareServiceException catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _fetchError = e.message; });

@@ -23,6 +23,8 @@ String shareDisclosureText(String version) =>
 /// plaintext, and never generates it on the patient's behalf.
 class ShareBundle {
   final String? patientName;
+  final String? imageFilename;
+  final String? imageAccessToken;
   final List<Map<String, dynamic>> findings;
   final List<FindingExplanation> explanations;
   final List<Exercise> exercises;
@@ -31,6 +33,8 @@ class ShareBundle {
 
   const ShareBundle({
     this.patientName,
+    this.imageFilename,
+    this.imageAccessToken,
     this.findings = const [],
     this.explanations = const [],
     this.exercises = const [],
@@ -40,6 +44,8 @@ class ShareBundle {
 
   factory ShareBundle.fromJson(Map<String, dynamic> json) => ShareBundle(
         patientName: json['patient_name'] as String?,
+        imageFilename: json['image_filename'] as String?,
+        imageAccessToken: json['image_access_token'] as String?,
         findings: (json['findings'] as List<dynamic>? ?? [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -62,6 +68,8 @@ class ShareBundle {
 
   Map<String, dynamic> toJson() => {
         if (patientName != null && patientName!.isNotEmpty) 'patient_name': patientName,
+        if (imageFilename != null && imageFilename!.isNotEmpty) 'image_filename': imageFilename,
+        if (imageAccessToken != null && imageAccessToken!.isNotEmpty) 'image_access_token': imageAccessToken,
         'findings':     findings,
         'explanations': explanations.map((e) => e.toJson()).toList(),
         'exercises':    exercises.map((e) => e.toJson()).toList(),

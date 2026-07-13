@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/patient_share_key_storage.dart';
 import 'patient_results_screen.dart';
 
 class PatientSavedResultsScreen extends StatefulWidget {
@@ -27,16 +28,22 @@ class _PatientSavedResultsScreenState extends State<PatientSavedResultsScreen> {
     return '${d.day}/${d.month}/${d.year}';
   }
 
-  void _open(BuildContext context, String code) {
+  Future<void> _open(BuildContext context, String code) async {
+    // The decryption key never lives in the Drift DB — it's stored
+    // separately in secure storage, keyed by share code (see
+    // PatientShareKeyStorage). Missing key = degraded, unpersonalized view.
+    final key = await PatientShareKeyStorage.read(code);
+    if (!context.mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PatientResultsScreen(shareCode: code),
+        builder: (_) => PatientResultsScreen(shareCode: code, shareKey: key),
       ),
     );
   }
 
   Future<void> _delete(String code) async {
     await _db?.deletePatientSaved(code);
+    await PatientShareKeyStorage.delete(code);
   }
 
   @override

@@ -43,6 +43,14 @@ class _PatientQrScreenState extends State<PatientQrScreen> {
       return;
     }
 
+    // Extract the decryption key from the URL fragment (`#k=...`), if any.
+    // A manually-typed code (or a link with no fragment) has no key — the
+    // results screen degrades gracefully to an unpersonalized view.
+    String? shareKey;
+    final fragment = uri?.fragment ?? '';
+    final keyMatch = RegExp(r'(?:^|&)k=([^&]+)').firstMatch(fragment);
+    if (keyMatch != null) shareKey = keyMatch.group(1);
+
     await _scanner.stop();
     if (!mounted) { _busy = false; return; }
 
@@ -57,7 +65,9 @@ class _PatientQrScreenState extends State<PatientQrScreen> {
 
     // Navigate immediately — PatientResultsScreen handles all loading
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => PatientResultsScreen(shareCode: code)),
+      MaterialPageRoute(
+        builder: (_) => PatientResultsScreen(shareCode: code, shareKey: shareKey),
+      ),
     );
   }
 

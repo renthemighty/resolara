@@ -10,13 +10,20 @@ import '../../core/services/analytics_service.dart';
 import '../../core/models/explanation.dart';
 import '../../core/models/exercise.dart';
 import '../../core/models/medication.dart';
+import '../../core/models/share_bundle.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/storage/app_database.dart';
+import '../../core/storage/patient_share_key_storage.dart';
 
 class PatientResultsScreen extends StatefulWidget {
   /// Share code — screen loads everything in the background.
   final String? shareCode;
-  const PatientResultsScreen({super.key, this.shareCode});
+  /// URL-safe decryption key from the share link's fragment (`#k=...`).
+  /// Null when the patient typed the code manually or opened a link with no
+  /// fragment — the screen still works, just without personalization
+  /// (see the "degraded" state in [_PatientResultsScreenState]).
+  final String? shareKey;
+  const PatientResultsScreen({super.key, this.shareCode, this.shareKey});
 
   @override
   State<PatientResultsScreen> createState() => _PatientResultsScreenState();
@@ -30,10 +37,12 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
   bool _saved        = false;
   bool _saveLoading  = false;
 
-  // Basic data
-  String? _patientName;
-  bool    _fetchingBasic = false;
+  // Fetch + decrypt (single combined step — everything in the bundle
+  // arrives from one ciphertext blob, there is no more per-section
+  // server round trip).
+  bool    _loading = false;
   String? _fetchError;
+  ShareBundle? _bundle; // null = decryption unavailable (no key, or failed) — degrade gracefully
 
   // Image
   Uint8List? _imageBytes;
@@ -41,30 +50,22 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
   String?    _imageError;
   bool       _imageExpanded = true;
 
-  // Explanations
-  List<FindingExplanation> _explanations     = [];
-  bool                     _explanationLoading = false;
-  String?                  _explanationError;
-  bool                     _explanationExpanded = false;
+  // Section expansion (data itself comes straight from _bundle — no
+  // per-tile loading/retry, it's all decrypted together up front)
+  bool _explanationExpanded = false;
+  bool _exercisesExpanded   = false;
+  bool _medicationsExpanded = false;
 
-  // Exercises
-  List<Exercise> _exercises       = [];
-  bool           _exercisesLoading = false;
-  String?        _exercisesError;
-  bool           _exercisesExpanded = false;
-  String         _exercisePhase   = 'acute';
-
-  // Medications
-  List<Medication> _medications      = [];
-  bool             _medicationsLoading = false;
-  String?          _medicationsError;
-  bool             _medicationsExpanded = false;
+  List<FindingExplanation> get _explanations => _bundle?.explanations ?? const [];
+  List<Exercise>           get _exercises    => _bundle?.exercises    ?? const [];
+  List<Medication>         get _medications  => _bundle?.medications  ?? const [];
+  String? get _patientName => _bundle?.patientName;
 
   @override
   void initState() {
     super.initState();
     if (widget.shareCode != null) {
-      _fetchBasic(widget.shareCode!);
+      _fetchAndDecrypt(widget.shareCode!);
       _checkSaved(widget.shareCode!);
     }
   }
@@ -85,6 +86,7 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
     try {
       if (_saved) {
         await _db!.deletePatientSaved(code);
+        await PatientShareKeyStorage.delete(code);
         if (!mounted) return;
         setState(() { _saved = false; _saveLoading = false; });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,6 +97,12 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
           patientName: Value(_patientName),
           savedAt:    Value(DateTime.now().millisecondsSinceEpoch),
         ));
+        // The decryption key lives outside the Drift DB (secure storage,
+        // never synced/exported with it) so "My Results" keeps working
+        // after restart without the key ever touching disk unencrypted.
+        if (widget.shareKey != null && widget.shareKey!.isNotEmpty) {
+          await PatientShareKeyStorage.save(code, widget.shareKey!);
+        }
         if (!mounted) return;
         setState(() { _saved = true; _saveLoading = false; });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,26 +114,29 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
     }
   }
 
-  // ── Basic fetch (fast file read) ──────────────────────────────────────────
+  // ── Fetch + decrypt ─────────────────────────────────────────────────────
 
-  Future<void> _fetchBasic(String code) async {
-    setState(() { _fetchingBasic = true; _fetchError = null; });
+  Future<void> _fetchAndDecrypt(String code) async {
+    setState(() { _loading = true; _fetchError = null; });
     try {
       final result = await _service.fetchResults(code);
+      final bundle = await _service.decryptBundle(result, widget.shareKey);
       if (!mounted) return;
       Analytics.resultsLoaded();
       setState(() {
-        _patientName   = result.patientName;
-        _fetchingBasic = false;
+        _bundle  = bundle;
+        _loading = false;
+        _explanationExpanded = bundle?.explanations.isNotEmpty ?? false;
+        _exercisesExpanded   = bundle?.exercises.isNotEmpty ?? false;
+        _medicationsExpanded = bundle?.medications.isNotEmpty ?? false;
       });
       if (result.imageUrl.isNotEmpty) _loadImage(result.imageUrl);
-      _loadExplanations();
     } on ShareServiceException catch (e) {
       if (!mounted) return;
-      setState(() { _fetchingBasic = false; _fetchError = e.message; });
+      setState(() { _loading = false; _fetchError = e.message; });
     } catch (_) {
       if (!mounted) return;
-      setState(() { _fetchingBasic = false; _fetchError = 'Could not load results. Please try again.'; });
+      setState(() { _loading = false; _fetchError = 'Could not load results. Please try again.'; });
     }
   }
 
@@ -147,77 +158,6 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
     }
   }
 
-  // ── Explanations ──────────────────────────────────────────────────────────
-
-  Future<void> _loadExplanations() async {
-    final code = widget.shareCode;
-    if (code == null || _explanationLoading) return;
-    setState(() { _explanationLoading = true; _explanationError = null; });
-    try {
-      final results = await _service.fetchExplanation(code);
-      if (!mounted) return;
-      setState(() {
-        _explanations       = results;
-        _explanationLoading  = false;
-        _explanationExpanded = results.isNotEmpty;
-      });
-      _loadExercises(_exercisePhase);
-    } on ShareServiceException catch (e) {
-      if (!mounted) return;
-      setState(() { _explanationLoading = false; _explanationError = e.message; });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _explanationLoading = false; _explanationError = 'Could not load explanations.'; });
-    }
-  }
-
-  // ── Exercises ─────────────────────────────────────────────────────────────
-
-  Future<void> _loadExercises(String phase) async {
-    final code = widget.shareCode;
-    if (code == null || _exercisesLoading) return;
-    setState(() { _exercisePhase = phase; _exercisesLoading = true; _exercisesError = null; _exercises = []; });
-    try {
-      final results = await _service.fetchExercises(code, phase);
-      if (!mounted) return;
-      setState(() {
-        _exercises       = results;
-        _exercisesLoading = false;
-        _exercisesExpanded = results.isNotEmpty;
-      });
-      _loadMedications();
-    } on ShareServiceException catch (e) {
-      if (!mounted) return;
-      setState(() { _exercisesLoading = false; _exercisesError = e.message; });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _exercisesLoading = false; _exercisesError = 'Could not load exercises.'; });
-    }
-  }
-
-  // ── Medications ───────────────────────────────────────────────────────────
-
-  Future<void> _loadMedications() async {
-    final code = widget.shareCode;
-    if (code == null || _medicationsLoading) return;
-    setState(() { _medicationsLoading = true; _medicationsError = null; });
-    try {
-      final meds = await _service.fetchMedications(code);
-      if (!mounted) return;
-      setState(() {
-        _medications        = meds;
-        _medicationsLoading  = false;
-        _medicationsExpanded = meds.isNotEmpty;
-      });
-    } on ShareServiceException catch (e) {
-      if (!mounted) return;
-      setState(() { _medicationsLoading = false; _medicationsError = e.message; });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _medicationsLoading = false; _medicationsError = 'Could not load medications.'; });
-    }
-  }
-
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -233,7 +173,7 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
       );
     }
 
-    if (_fetchingBasic) {
+    if (_loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('My Results')),
         body: const Center(child: CircularProgressIndicator()),
@@ -245,11 +185,12 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
         appBar: AppBar(title: const Text('My Results')),
         body: _ErrorBody(
           message: _fetchError!,
-          onRetry: () => _fetchBasic(widget.shareCode!),
+          onRetry: () => _fetchAndDecrypt(widget.shareCode!),
         ),
       );
     }
 
+    final degraded = _bundle == null;
     final title = (_patientName?.isNotEmpty == true) ? _patientName! : 'My Results';
 
     return Scaffold(
@@ -279,6 +220,14 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
+            if (degraded) ...[
+              const _DegradedNotice(),
+              const SizedBox(height: 8),
+            ] else if (_bundle != null) ...[
+              _DisclosureBanner(text: shareDisclosureText(_bundle!.disclosureVersion)),
+              const SizedBox(height: 8),
+            ],
+
             // ── Image Visualization ────────────────────────────────────────
             _Tile(
               icon:       Icons.image_outlined,
@@ -291,84 +240,119 @@ class _PatientResultsScreenState extends State<PatientResultsScreen> {
                 loading:  _imageLoading,
                 error:    _imageError,
                 onRetry:  _imageError != null ? () {
-                  // Re-trigger image fetch from current result — need to re-fetch basic first
-                  _fetchBasic(widget.shareCode!);
+                  _fetchAndDecrypt(widget.shareCode!);
                 } : null,
               ),
             ),
-            const SizedBox(height: 8),
 
-            // ── Injury Explanation ─────────────────────────────────────────
-            _Tile(
-              icon:       Icons.menu_book_outlined,
-              title:      'Injury Explanation',
-              expanded:   _explanationExpanded,
-              hasContent: _explanations.isNotEmpty,
-              onToggle: () {
-                final opening = !_explanationExpanded;
-                setState(() => _explanationExpanded = opening);
-                if (opening && _explanations.isEmpty && !_explanationLoading) {
-                  _loadExplanations();
-                }
-              },
-              child: _ExplanationSection(
-                loading:      _explanationLoading,
-                error:        _explanationError,
-                explanations: _explanations,
-                onRetry:      _loadExplanations,
+            if (!degraded) ...[
+              const SizedBox(height: 8),
+              // ── Injury Explanation ─────────────────────────────────────────
+              _Tile(
+                icon:       Icons.menu_book_outlined,
+                title:      'Injury Explanation',
+                expanded:   _explanationExpanded,
+                hasContent: _explanations.isNotEmpty,
+                onToggle: () => setState(() => _explanationExpanded = !_explanationExpanded),
+                child: _ExplanationSection(explanations: _explanations),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // ── Exercise Plan ──────────────────────────────────────────────
-            _Tile(
-              icon:       Icons.fitness_center_outlined,
-              title:      'Exercise Plan',
-              expanded:   _exercisesExpanded,
-              hasContent: _exercises.isNotEmpty,
-              onToggle: () {
-                final opening = !_exercisesExpanded;
-                setState(() => _exercisesExpanded = opening);
-                if (opening && _exercises.isEmpty && !_exercisesLoading) {
-                  _loadExercises(_exercisePhase);
-                }
-              },
-              child: _ExercisesSection(
-                loading:   _exercisesLoading,
-                error:     _exercisesError,
-                exercises: _exercises,
-                onRetry:   () => _loadExercises(_exercisePhase),
-                shareCode: widget.shareCode ?? '',
+              // ── Exercise Plan ──────────────────────────────────────────────
+              _Tile(
+                icon:       Icons.fitness_center_outlined,
+                title:      'Exercise Plan',
+                expanded:   _exercisesExpanded,
+                hasContent: _exercises.isNotEmpty,
+                onToggle: () => setState(() => _exercisesExpanded = !_exercisesExpanded),
+                child: _ExercisesSection(
+                  exercises: _exercises,
+                  shareCode: widget.shareCode ?? '',
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // ── Medications ────────────────────────────────────────────────
-            _Tile(
-              icon:       Icons.medication_outlined,
-              title:      'Medications',
-              expanded:   _medicationsExpanded,
-              hasContent: _medications.isNotEmpty,
-              onToggle: () {
-                final opening = !_medicationsExpanded;
-                setState(() => _medicationsExpanded = opening);
-                if (opening && _medications.isEmpty && !_medicationsLoading) {
-                  _loadMedications();
-                }
-              },
-              child: _MedicationsSection(
-                loading:     _medicationsLoading,
-                error:       _medicationsError,
-                medications: _medications,
-                onRetry:     _loadMedications,
-                shareCode:   widget.shareCode ?? '',
+              // ── Medications ────────────────────────────────────────────────
+              _Tile(
+                icon:       Icons.medication_outlined,
+                title:      'Medications',
+                expanded:   _medicationsExpanded,
+                hasContent: _medications.isNotEmpty,
+                onToggle: () => setState(() => _medicationsExpanded = !_medicationsExpanded),
+                child: _MedicationsSection(
+                  medications: _medications,
+                  shareCode:   widget.shareCode ?? '',
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+// ── Degraded / disclosure banners ────────────────────────────────────────────
+
+class _DegradedNotice extends StatelessWidget {
+  const _DegradedNotice();
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color:        AppTheme.sage.withAlpha(25),
+          borderRadius: BorderRadius.circular(12),
+          border:       Border.all(color: AppTheme.sage.withAlpha(80)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.lock_outline, size: 18, color: AppTheme.sage),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text('Results shared by your practitioner',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 4),
+                  Text(
+                    'This code was entered manually, so the personalized '
+                    'summary can\'t be unlocked here. Use the QR code or the '
+                    'full link your practitioner gave you to see your name, '
+                    'explanation, exercises, and medications.',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _DisclosureBanner extends StatelessWidget {
+  final String text;
+  const _DisclosureBanner({required this.text});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color:        AppTheme.gold.withAlpha(18),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline, size: 16, color: AppTheme.gold),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text,
+                  style: const TextStyle(fontSize: 11.5, color: AppTheme.textSecondary)),
+            ),
+          ],
+        ),
+      );
 }
 
 // ── Accordion tile ─────────────────────────────────────────────────────────────
@@ -484,6 +468,18 @@ class _SectionError extends StatelessWidget {
       );
 }
 
+class _SectionEmpty extends StatelessWidget {
+  final String label;
+  const _SectionEmpty(this.label);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+      );
+}
+
 // ── Image section ──────────────────────────────────────────────────────────────
 
 class _ImageSection extends StatelessWidget {
@@ -518,23 +514,13 @@ class _ImageSection extends StatelessWidget {
 // ── Explanation section ────────────────────────────────────────────────────────
 
 class _ExplanationSection extends StatelessWidget {
-  final bool                     loading;
-  final String?                  error;
   final List<FindingExplanation> explanations;
-  final VoidCallback             onRetry;
 
-  const _ExplanationSection({
-    required this.loading,
-    required this.error,
-    required this.explanations,
-    required this.onRetry,
-  });
+  const _ExplanationSection({required this.explanations});
 
   @override
   Widget build(BuildContext context) {
-    if (loading)    return const _SectionLoading('Loading explanations…');
-    if (error != null) return _SectionError(message: error!, onRetry: onRetry);
-    if (explanations.isEmpty) return const _SectionLoading('Loading explanations…');
+    if (explanations.isEmpty) return const _SectionEmpty('No explanation was shared.');
 
     return ListView.separated(
       shrinkWrap:       true,
@@ -599,25 +585,17 @@ class _InfoRow extends StatelessWidget {
 // ── Exercises section ──────────────────────────────────────────────────────────
 
 class _ExercisesSection extends StatelessWidget {
-  final bool           loading;
-  final String?        error;
   final List<Exercise> exercises;
-  final VoidCallback   onRetry;
   final String         shareCode;
 
   const _ExercisesSection({
-    required this.loading,
-    required this.error,
     required this.exercises,
-    required this.onRetry,
     required this.shareCode,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (loading)    return const _SectionLoading('Loading exercises…');
-    if (error != null) return _SectionError(message: error!, onRetry: onRetry);
-    if (exercises.isEmpty) return const _SectionLoading('Loading exercises…');
+    if (exercises.isEmpty) return const _SectionEmpty('No exercises were shared.');
 
     return ListView.separated(
       shrinkWrap:       true,
@@ -768,25 +746,17 @@ class _ExerciseCardState extends State<_ExerciseCard> {
 // ── Medications section ────────────────────────────────────────────────────────
 
 class _MedicationsSection extends StatelessWidget {
-  final bool             loading;
-  final String?          error;
   final List<Medication> medications;
-  final VoidCallback     onRetry;
   final String           shareCode;
 
   const _MedicationsSection({
-    required this.loading,
-    required this.error,
     required this.medications,
-    required this.onRetry,
     required this.shareCode,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (loading)      return const _SectionLoading('Loading medications…');
-    if (error != null) return _SectionError(message: error!, onRetry: onRetry);
-    if (medications.isEmpty) return const _SectionLoading('Loading medications…');
+    if (medications.isEmpty) return const _SectionEmpty('No medications were shared.');
 
     return Column(
       mainAxisSize: MainAxisSize.min,

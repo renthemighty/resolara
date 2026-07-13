@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../app/theme/app_theme.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/share_service.dart';
+import '../../core/models/share_bundle.dart';
 import '../../core/services/analytics_service.dart';
 import '../../core/services/session_service.dart';
 import '../../core/storage/app_database.dart';
@@ -600,6 +601,7 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
     // Show loading indicator — capture navigator before async gap so we can
     // always dismiss the dialog even if the widget unmounts mid-call.
     String? code;
+    String? key;
     String? err;
     NavigatorState? loadingNav;
     if (mounted) {
@@ -611,11 +613,21 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
       );
     }
     try {
-      code = await ShareService().createShare(
-        imageUrl:    imageUrl,
-        findings:    findings,
+      // Re-sharing an already-saved session — there is no curated
+      // explanation/exercise/medication selection to carry over (that only
+      // exists during the original review), so the bundle here is the
+      // findings only. The server never generates that content on the
+      // patient's behalf; the patient just sees the image + findings.
+      final bundle = ShareBundle(
         patientName: null,
+        findings:    findings,
       );
+      final result = await ShareService().createShare(
+        imageUrl: imageUrl,
+        bundle:   bundle.toJson(),
+      );
+      code = result.code;
+      key  = result.key;
     } on ShareServiceException catch (e) {
       err = e.message;
     } catch (_) {
@@ -639,7 +651,7 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _ShareCodeSheet(code: code!),
+      builder: (_) => _ShareCodeSheet(code: code!, shareKey: key),
     );
   }
 
@@ -893,12 +905,17 @@ class _InfoChip extends StatelessWidget {
 
 class _ShareCodeSheet extends StatelessWidget {
   final String code;
-  const _ShareCodeSheet({required this.code});
+  /// URL-safe decryption key for the QR link fragment — never sent to any
+  /// server (see ShareCrypto). Falls back to a bare code if somehow absent,
+  /// which the patient app treats as manual entry (degraded, unpersonalized).
+  final String? shareKey;
+  const _ShareCodeSheet({required this.code, required this.shareKey});
 
   @override
   Widget build(BuildContext context) {
-    // QR encodes the bare code — patient app strips formatting
-    final qrData = code;
+    final qrData = shareKey != null
+        ? 'https://resolara.ai/results/$code#k=$shareKey'
+        : code;
 
     return Padding(
       padding: EdgeInsets.only(

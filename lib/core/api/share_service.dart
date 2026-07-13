@@ -1,9 +1,8 @@
 import 'package:dio/dio.dart';
 import '../api/api_client.dart';
-import '../models/explanation.dart';
-import '../models/exercise.dart';
-import '../models/medication.dart';
+import '../crypto/share_crypto.dart';
 import '../models/patient_result.dart';
+import '../models/share_bundle.dart';
 
 class ShareServiceException implements Exception {
   final String message;
@@ -14,38 +13,51 @@ class ShareServiceException implements Exception {
 class ShareService {
   final _dio = ApiClient.instance.dio;
 
-  /// Practitioner: create a share code for a completed session.
-  /// Returns the short code (e.g. "ABCDEF").
-  Future<String> createShare({
+  static const _maxCodeAttempts = 5;
+
+  /// Practitioner: encrypt [bundle] client-side (AES-256-GCM, key never sent
+  /// to the server — see `ShareCrypto`) and create a share record.
+  ///
+  /// The share code is generated here, not by the server, because it is
+  /// used as AEAD associated data when encrypting — the server only
+  /// validates format/uniqueness of the code the client already committed
+  /// to in the ciphertext. On the (extremely unlikely) event of a code
+  /// collision the server returns 409 and this retries with a fresh code.
+  ///
+  /// Returns the share code (safe to display/type) and the URL-safe key
+  /// (NEVER send this to any server — combine as
+  /// `https://resolara.ai/results/{code}#k={key}` for the QR/link only).
+  Future<({String code, String key})> createShare({
     required String imageUrl,
-    List<Map<String, dynamic>> findings = const [],
-    String? patientName,
-    List<Map<String, dynamic>> explanations = const [],
-    List<Map<String, dynamic>> exercises    = const [],
-    List<Map<String, dynamic>> medications  = const [],
+    required Map<String, dynamic> bundle,
   }) async {
-    try {
-      final res = await _dio.post('/v1/share', data: {
-        'image_url':    imageUrl,
-        'findings':     findings,
-        if (patientName != null && patientName.isNotEmpty)
-          'patient_name': patientName,
-        if (explanations.isNotEmpty) 'explanations': explanations,
-        if (exercises.isNotEmpty)    'exercises':    exercises,
-        if (medications.isNotEmpty)  'medications':  medications,
-      });
-      final code = res.data['code'] as String?;
-      if (code == null || code.isEmpty) {
-        throw const ShareServiceException('Server returned no share code.');
+    DioException? lastError;
+    for (var attempt = 0; attempt < _maxCodeAttempts; attempt++) {
+      final code = ShareCrypto.generateCode();
+      final encrypted = await ShareCrypto.encryptBundle(bundle: bundle, code: code);
+      try {
+        final res = await _dio.post('/v1/share', data: {
+          'code':             code,
+          'image_url':        imageUrl,
+          'encrypted_bundle': encrypted.wire,
+          'schema_version':   1,
+        });
+        final returnedCode = res.data['code'] as String? ?? code;
+        return (code: returnedCode, key: encrypted.key);
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 409) {
+          lastError = e;
+          continue; // code collision — regenerate and retry
+        }
+        final msg = e.response?.data?['error'] ?? e.message ?? 'Share failed.';
+        throw ShareServiceException(msg.toString());
       }
-      return code;
-    } on DioException catch (e) {
-      final msg = e.response?.data?['error'] ?? e.message ?? 'Share failed.';
-      throw ShareServiceException(msg.toString());
     }
+    final msg = lastError?.response?.data?['error'] ?? 'Could not generate a unique share code.';
+    throw ShareServiceException(msg.toString());
   }
 
-  /// Patient (no auth): fetch basic share data (fast file read).
+  /// Patient (no auth): fetch the raw share record (opaque ciphertext + image URL).
   Future<PatientResult> fetchResults(String code) async {
     final clean = code.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
     try {
@@ -57,50 +69,32 @@ class ShareService {
         throw const ShareServiceException(
             'Code not found or expired. Check the code and try again.');
       }
+      if (e.response?.statusCode == 429) {
+        throw const ShareServiceException(
+            'Too many attempts. Please wait a bit and try again.');
+      }
       final msg = e.response?.data?['error'] ?? e.message ?? 'Could not load results.';
       throw ShareServiceException(msg.toString());
     }
   }
 
-  /// Patient: load explanations (cached on server after first call).
-  Future<List<FindingExplanation>> fetchExplanation(String code) async {
-    final clean = code.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
-    try {
-      final res = await ApiClient.instance.dioNoAuth
-          .post('/v1/patient/results/$clean/explanation');
-      final raw = (res.data['explanations'] as List<dynamic>? ?? []);
-      return raw.map((e) => FindingExplanation.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      final msg = e.response?.data?['error'] ?? e.message ?? 'Could not load explanations.';
-      throw ShareServiceException(msg.toString());
+  /// Decrypts [result]'s bundle using the key carried in the share link's
+  /// URL fragment. Returns null (never throws) when [urlKey] is missing or
+  /// decryption fails for any reason — callers should treat null as the
+  /// "no personalization available" degraded view, not an error state.
+  Future<ShareBundle?> decryptBundle(PatientResult result, String? urlKey) async {
+    if (urlKey == null || urlKey.isEmpty || result.encryptedBundle.isEmpty) {
+      return null;
     }
-  }
-
-  /// Patient: load exercises for a phase (cached per phase on server).
-  Future<List<Exercise>> fetchExercises(String code, String phase) async {
-    final clean = code.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
     try {
-      final res = await ApiClient.instance.dioNoAuth
-          .post('/v1/patient/results/$clean/exercises', data: {'phase': phase});
-      final raw = (res.data['exercises'] as List<dynamic>? ?? []);
-      return raw.map((e) => Exercise.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      final msg = e.response?.data?['error'] ?? e.message ?? 'Could not load exercises.';
-      throw ShareServiceException(msg.toString());
-    }
-  }
-
-  /// Patient: load medication suggestions (cached on server after first call).
-  Future<List<Medication>> fetchMedications(String code) async {
-    final clean = code.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
-    try {
-      final res = await ApiClient.instance.dioNoAuth
-          .post('/v1/patient/results/$clean/medications');
-      final raw = (res.data['medications'] as List<dynamic>? ?? []);
-      return raw.map((e) => Medication.fromJson(e as Map<String, dynamic>)).toList();
-    } on DioException catch (e) {
-      final msg = e.response?.data?['error'] ?? e.message ?? 'Could not load medications.';
-      throw ShareServiceException(msg.toString());
+      final json = await ShareCrypto.decryptBundle(
+        wire:   result.encryptedBundle,
+        urlKey: urlKey,
+        code:   result.code,
+      );
+      return ShareBundle.fromJson(json);
+    } catch (_) {
+      return null;
     }
   }
 }

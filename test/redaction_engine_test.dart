@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:resolara/core/services/redaction/redaction.dart';
-import 'package:resolara/core/services/redaction/redaction_span.dart';
 
 void main() {
   group('RedactionEngine', () {

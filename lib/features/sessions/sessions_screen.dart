@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -482,9 +481,9 @@ class _TotalsCard extends StatelessWidget {
 class _AnalyticsTile extends StatelessWidget {
   final String label;
   final String value;
-  final bool highlight;
+  final bool highlight = false;
   const _AnalyticsTile(
-      {required this.label, required this.value, this.highlight = false});
+      {required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -871,8 +870,8 @@ class _SessionDetailSheetState extends State<_SessionDetailSheet> {
 
 class _InfoChip extends StatelessWidget {
   final String label;
-  final bool highlight;
-  const _InfoChip({required this.label, this.highlight = false});
+  final bool highlight = false;
+  const _InfoChip({required this.label});
 
   @override
   Widget build(BuildContext context) {

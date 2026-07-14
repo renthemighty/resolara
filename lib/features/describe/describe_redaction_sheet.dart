@@ -112,7 +112,6 @@ class _DescribeRedactionSheetState extends State<DescribeRedactionSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final spans = widget.analysis.spans;
-    final acceptedCount = spans.where((s) => s.decision == SpanDecision.accepted).length;
     final pendingCount = spans.where((s) => s.decision == SpanDecision.pending).length;
     final preview = widget.analysis.buildRedactedText();
 

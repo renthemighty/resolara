@@ -25,6 +25,7 @@ dependencies:
 
   # Local encrypted DB
   drift: ^2.23.1
+  sqlite3: ^2.0.0
   sqlite3_flutter_libs: ^0.5.28
   # SQLCipher native libs, used to actually encrypt the Drift/sqlite3 file.
   # Pinned below 0.7.0: 0.7.0+eol is a no-op stub for apps that migrated to
